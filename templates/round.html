@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Round {{ pairings.round_num }} · Baddy Mixer{% endblock %}
+
+{% block header_extra %}
+<span class="pill">Round {{ pairings.round_num }}</span>
+{% endblock %}
+
+{% block content %}
+{% if pairings.round_num > 1 %}
+<section class="card card-compact">
+  <h2 class="section-title">Rankings</h2>
+  <p class="rankings-line">
+    {% for name, pts in pairings.rankings %}
+    <span>{{ name }} ({{ pts }})</span>{% if not loop.last %} · {% endif %}
+    {% endfor %}
+  </p>
+</section>
+{% endif %}
+
+{% if errors %}
+<ul class="alert alert-error">
+  {% for error in errors %}
+  <li>{{ error }}</li>
+  {% endfor %}
+</ul>
+{% endif %}
+
+<section class="card">
+  <h1>Round {{ pairings.round_num }} matchups</h1>
+
+  <form method="post" action="{{ url_for('submit_scores') }}" class="form">
+    {% for match in pairings.matches %}
+    {% set i = loop.index0 %}
+    <article class="match-card">
+      <h2 class="match-title">Court {{ loop.index }}</h2>
+      <div class="versus">
+        <span class="player-name">{{ match[0] }}</span>
+        <span class="vs">vs</span>
+        <span class="player-name">{{ match[1] }}</span>
+      </div>
+      <div class="score-row">
+        <label class="score-field">
+          <span>{{ match[0] }}</span>
+          <input
+            type="number"
+            name="score_{{ i }}_p1"
+            min="0"
+            max="11"
+            inputmode="numeric"
+            required
+            placeholder="0–11"
+          >
+        </label>
+        <label class="score-field">
+          <span>{{ match[1] }}</span>
+          <input
+            type="number"
+            name="score_{{ i }}_p2"
+            min="0"
+            max="11"
+            inputmode="numeric"
+            required
+            placeholder="0–11"
+          >
+        </label>
+      </div>
+    </article>
+    {% endfor %}
+
+    <button type="submit" class="btn btn-primary btn-block">Save scores</button>
+  </form>
+</section>
+
+{% if pairings.byes %}
+<section class="card card-bye">
+  <h2 class="section-title">Sitting out</h2>
+  <p>{{ pairings.byes | join(', ') }}</p>
+  <p class="hint">+6 points each (already added)</p>
+</section>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}New Session · Baddy Mixer{% endblock %}
+
+{% block content %}
+<section class="card">
+  <h1>Start session</h1>
+  <p class="lead">Set courts and players, then generate fair singles matchups each round.</p>
+
+  {% if errors %}
+  <ul class="alert alert-error">
+    {% for error in errors %}
+    <li>{{ error }}</li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+
+  <form method="post" action="{{ url_for('start_session') }}" class="form">
+    <label class="field">
+      <span class="label">Courts available</span>
+      <input
+        type="number"
+        name="num_courts"
+        min="1"
+        max="20"
+        inputmode="numeric"
+        required
+        value="{{ num_courts or '' }}"
+        placeholder="e.g. 4"
+      >
+    </label>
+
+    <label class="field">
+      <span class="label">Players</span>
+      <span class="hint">One name per line (at least 2)</span>
+      <textarea
+        name="players"
+        rows="8"
+        required
+        placeholder="Alex&#10;Jordan&#10;Sam&#10;..."
+      >{{ players or '' }}</textarea>
+    </label>
+
+    <button type="submit" class="btn btn-primary btn-block">Start round 1</button>
+  </form>
+</section>
+{% endblock %}

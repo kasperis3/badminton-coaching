@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Round {{ round_num }} done · Baddy Mixer{% endblock %}
+
+{% block header_extra %}
+<span class="pill">Round {{ round_num }} complete</span>
+{% endblock %}
+
+{% block content %}
+<section class="card">
+  <h1>Round {{ round_num }} saved</h1>
+  <p class="lead">Standings after this round. Generate another round or end the session.</p>
+
+  <ol class="standings-list">
+    {% for player, score in standings %}
+    <li>
+      <span class="rank">{{ loop.index }}</span>
+      <span class="name">{{ player }}</span>
+      <span class="pts">{{ score }} pts</span>
+    </li>
+    {% endfor %}
+  </ol>
+
+  <div class="action-stack">
+    <form method="post" action="{{ url_for('next_round') }}">
+      <button type="submit" class="btn btn-primary btn-block">Next round</button>
+    </form>
+    <form method="post" action="{{ url_for('end_session') }}">
+      <button type="submit" class="btn btn-secondary btn-block">End session</button>
+    </form>
+  </div>
+</section>
+{% endblock %}

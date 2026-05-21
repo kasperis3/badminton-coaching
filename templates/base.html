@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#0d3b2e">
+  <title>{% block title %}Baddy Mixer{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header class="site-header">
+    <div class="brand">
+      <span class="brand-icon">🏸</span>
+      <span class="brand-text">Baddy Mixer</span>
+    </div>
+    {% block header_extra %}{% endblock %}
+  </header>
+
+  <main class="page">
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="site-footer">
+    Singles round-robin for coaching sessions
+  </footer>
+</body>
+</html>
