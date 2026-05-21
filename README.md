@@ -28,7 +28,8 @@ Use Gunicorn behind Nginx so you can open `http://YOUR_VPS_IP` from your phone a
 
 Config templates live in [`deploy/`](deploy/):
 - [`deploy/baddy.service`](deploy/baddy.service) — systemd unit
-- [`deploy/nginx-baddy.conf`](deploy/nginx-baddy.conf) — Nginx site
+- [`deploy/nginx-baddy.conf`](deploy/nginx-baddy.conf) — Nginx on port 80 (only if nothing else uses it)
+- [`deploy/nginx-baddy-port.conf`](deploy/nginx-baddy-port.conf) — Nginx on port 8080 (alongside another app on 80)
 - [`deploy/.env.example`](deploy/.env.example) — `SECRET_KEY` reminder
 
 ### 1. VPS initial setup (Ubuntu)
@@ -90,6 +91,77 @@ sudo systemctl reload nginx
 ```
 
 Open on your phone: `http://<VPS_PUBLIC_IP>`
+
+### Running alongside another app on the same droplet
+
+Your existing app and Baddy can coexist. They are separate processes:
+
+| Piece | Baddy | Your existing app |
+|-------|-------|-------------------|
+| systemd | `baddy.service` | its own unit (e.g. `myapp.service`) |
+| Gunicorn | `127.0.0.1:8000` | usually another port |
+| Nginx | extra site or `location` | already configured |
+
+**Do not** follow the step that removes `/etc/nginx/sites-enabled/default` if that would break your current site.
+
+#### 1. Check what is already in use (on the VPS)
+
+```bash
+sudo ss -tlnp | grep -E ':80|:8000|:8080'
+ls /etc/nginx/sites-enabled/
+```
+
+If port **8000** is taken, edit `deploy/baddy.service` to use another port, e.g. `127.0.0.1:8001`, and match it in the nginx `proxy_pass` below.
+
+#### 2. Deploy Baddy only (same as above)
+
+Install code under `/var/www/baddy`, venv, `pip install -r requirements.txt`, enable `baddy.service`. This does not stop your other app.
+
+#### 3. Choose how to reach Baddy
+
+**Option A — Subdomain (best if you have a domain)**  
+e.g. `baddy.yourdomain.com` → Gunicorn, while `yourdomain.com` stays your current app.
+
+```nginx
+# /etc/nginx/sites-available/baddy
+server {
+    listen 80;
+    server_name baddy.yourdomain.com;
+
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+}
+```
+
+Add a DNS **A record** for `baddy` pointing at the droplet IP. Open on your phone: `http://baddy.yourdomain.com`
+
+**Option B — Separate port (simplest with IP only)**  
+Leave your current app on port 80. Use [`deploy/nginx-baddy-port.conf`](deploy/nginx-baddy-port.conf):
+
+```bash
+sudo cp deploy/nginx-baddy-port.conf /etc/nginx/sites-available/baddy
+sudo ln -sf /etc/nginx/sites-available/baddy /etc/nginx/sites-enabled/baddy
+sudo ufw allow 8080/tcp
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+Open on your phone: `http://<VPS_PUBLIC_IP>:8080`  
+Also allow **TCP 8080** in the DigitalOcean cloud firewall if you use it.
+
+**Option C — Path on the same site** (`yourdomain.com/baddy/`)  
+Possible but needs Flask `SCRIPT_NAME` / URL prefix changes. Prefer A or B unless you specifically need one hostname.
+
+#### 4. Verify both apps
+
+```bash
+curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8000   # Baddy direct
+curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8080  # if using port 8080
+# your existing app URL as you use it today
+```
 
 ### 5. Verify
 
