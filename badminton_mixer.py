@@ -2,7 +2,7 @@ import random
 
 from mixer_core import (
     apply_bye_points,
-    apply_match_scores,
+    apply_round_scores,
     generate_round,
     sorted_standings,
 )
@@ -51,7 +51,16 @@ def display_round(pairings, players_scores):
         rankings = pairings["rankings"]
         print("Current Rankings:", ", ".join([f"{k}({v}pts)" for k, v in rankings]))
 
-    for court_idx, (p1, p2) in enumerate(pairings["matches"], 1):
+    court_idx = 1
+    for side_a, side_b in pairings["doubles"]:
+        print(
+            f"Court {court_idx} (Doubles): "
+            f"({side_a[0]} & {side_a[1]}) vs ({side_b[0]} & {side_b[1]})"
+        )
+        court_idx += 1
+
+    if pairings["singles"]:
+        p1, p2 = pairings["singles"]
         print(f"Court {court_idx} (Singles): {p1} vs {p2}")
 
     if pairings["byes"]:
@@ -75,13 +84,29 @@ def get_valid_score(prompt):
 
 def enter_scores(pairings, players_scores):
     print("--- Enter final match points (0 to 11) ---")
-    scores = []
-    for idx, (p1, p2) in enumerate(pairings["matches"], 1):
-        print(f"\nCourt {idx} (Singles):")
+    doubles_scores = []
+    for idx, (side_a, side_b) in enumerate(pairings["doubles"], 1):
+        print(f"\nCourt {idx} (Doubles):")
+        score_a = get_valid_score(f"  Points for ({side_a[0]} & {side_a[1]}): ")
+        score_b = get_valid_score(f"  Points for ({side_b[0]} & {side_b[1]}): ")
+        doubles_scores.append((score_a, score_b))
+
+    singles_score = None
+    if pairings["singles"]:
+        p1, p2 = pairings["singles"]
+        court_num = len(pairings["doubles"]) + 1
+        print(f"\nCourt {court_num} (Singles):")
         score_p1 = get_valid_score(f"  Points for {p1}: ")
         score_p2 = get_valid_score(f"  Points for {p2}: ")
-        scores.append((score_p1, score_p2))
-    apply_match_scores(players_scores, pairings["matches"], scores)
+        singles_score = (score_p1, score_p2)
+
+    apply_round_scores(
+        players_scores,
+        pairings["doubles"],
+        pairings["singles"],
+        doubles_scores,
+        singles_score,
+    )
 
 
 def main():

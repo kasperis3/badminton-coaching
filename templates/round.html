@@ -29,21 +29,21 @@
   <h1>Round {{ pairings.round_num }} matchups</h1>
 
   <form method="post" action="{{ url_for('submit_scores') }}" class="form">
-    {% for match in pairings.matches %}
+    {% for match in pairings.doubles %}
     {% set i = loop.index0 %}
     <article class="match-card">
-      <h2 class="match-title">Court {{ loop.index }}</h2>
+      <h2 class="match-title">Court {{ loop.index }} (Doubles)</h2>
       <div class="versus">
-        <span class="player-name">{{ match[0] }}</span>
+        <span class="player-name">{{ match[0][0] }} &amp; {{ match[0][1] }}</span>
         <span class="vs">vs</span>
-        <span class="player-name">{{ match[1] }}</span>
+        <span class="player-name">{{ match[1][0] }} &amp; {{ match[1][1] }}</span>
       </div>
       <div class="score-row">
         <label class="score-field">
-          <span>{{ match[0] }}</span>
+          <span>{{ match[0][0] }} &amp; {{ match[0][1] }}</span>
           <input
             type="number"
-            name="score_{{ i }}_p1"
+            name="doubles_{{ i }}_a"
             min="0"
             max="11"
             inputmode="numeric"
@@ -52,10 +52,10 @@
           >
         </label>
         <label class="score-field">
-          <span>{{ match[1] }}</span>
+          <span>{{ match[1][0] }} &amp; {{ match[1][1] }}</span>
           <input
             type="number"
-            name="score_{{ i }}_p2"
+            name="doubles_{{ i }}_b"
             min="0"
             max="11"
             inputmode="numeric"
@@ -66,6 +66,44 @@
       </div>
     </article>
     {% endfor %}
+
+    {% if pairings.singles %}
+    {% set court_num = pairings.doubles|length + 1 %}
+    <article class="match-card">
+      <h2 class="match-title">Court {{ court_num }} (Singles)</h2>
+      <div class="versus">
+        <span class="player-name">{{ pairings.singles[0] }}</span>
+        <span class="vs">vs</span>
+        <span class="player-name">{{ pairings.singles[1] }}</span>
+      </div>
+      <div class="score-row">
+        <label class="score-field">
+          <span>{{ pairings.singles[0] }}</span>
+          <input
+            type="number"
+            name="singles_p1"
+            min="0"
+            max="11"
+            inputmode="numeric"
+            required
+            placeholder="0–11"
+          >
+        </label>
+        <label class="score-field">
+          <span>{{ pairings.singles[1] }}</span>
+          <input
+            type="number"
+            name="singles_p2"
+            min="0"
+            max="11"
+            inputmode="numeric"
+            required
+            placeholder="0–11"
+          >
+        </label>
+      </div>
+    </article>
+    {% endif %}
 
     <button type="submit" class="btn btn-primary btn-block">Save scores</button>
   </form>

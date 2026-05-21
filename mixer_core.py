@@ -17,30 +17,45 @@ def select_sitters(ranked_names, sit_out_history, players_scores, count):
 def generate_round(num_courts, players_scores, sit_out_history, round_num):
     sorted_players = sorted(players_scores.items(), key=lambda x: x[1], reverse=True)
     ranked_names = [p[0] for p in sorted_players]
-    total_players = len(ranked_names)
+    doubles_capacity = num_courts * 4
+    sitting_out = []
 
-    max_playing = num_courts * 2
-    playing_count = min(total_players, max_playing)
-    if playing_count % 2 == 1:
-        playing_count -= 1
+    active = ranked_names.copy()
+    if len(active) > doubles_capacity:
+        sitting_out.extend(
+            select_sitters(active, sit_out_history, players_scores, len(active) - doubles_capacity)
+        )
+        active = [p for p in active if p not in sitting_out]
 
-    sit_out_count = total_players - playing_count
-    sitting_out = (
-        select_sitters(ranked_names, sit_out_history, players_scores, sit_out_count)
-        if sit_out_count
-        else []
-    )
+    doubles_player_count = (len(active) // 4) * 4
+    doubles_pool = active[:doubles_player_count]
+    leftover = active[doubles_player_count:]
 
-    playing_pool = [p for p in ranked_names if p not in sitting_out]
+    singles = None
+    if len(leftover) == 1:
+        sitting_out.append(leftover[0])
+        sit_out_history[leftover[0]] += 1
+    elif len(leftover) == 2:
+        singles = (leftover[0], leftover[1])
+    elif len(leftover) == 3:
+        sitter = select_sitters(leftover, sit_out_history, players_scores, 1)[0]
+        sitting_out.append(sitter)
+        playing = [p for p in leftover if p != sitter]
+        singles = (playing[0], playing[1])
+
     if round_num == 1:
-        random.shuffle(playing_pool)
+        random.shuffle(doubles_pool)
 
-    matches = []
-    for i in range(0, playing_count, 2):
-        matches.append((playing_pool[i], playing_pool[i + 1]))
+    doubles_matches = []
+    for i in range(0, doubles_player_count, 4):
+        tier = doubles_pool[i : i + 4]
+        if round_num == 1:
+            random.shuffle(tier)
+        doubles_matches.append(((tier[0], tier[1]), (tier[2], tier[3])))
 
     return {
-        "matches": matches,
+        "doubles": doubles_matches,
+        "singles": singles,
         "byes": sitting_out,
         "rankings": sorted_players,
         "round_num": round_num,
@@ -52,8 +67,15 @@ def apply_bye_points(players_scores, byes, points=6):
         players_scores[player] += points
 
 
-def apply_match_scores(players_scores, matches, scores):
-    for (p1, p2), (score_p1, score_p2) in zip(matches, scores):
+def apply_round_scores(players_scores, doubles, singles, doubles_scores, singles_score):
+    for (side_a, side_b), (score_a, score_b) in zip(doubles, doubles_scores):
+        for player in side_a:
+            players_scores[player] += score_a
+        for player in side_b:
+            players_scores[player] += score_b
+    if singles and singles_score:
+        p1, p2 = singles
+        score_p1, score_p2 = singles_score
         players_scores[p1] += score_p1
         players_scores[p2] += score_p2
 

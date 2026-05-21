@@ -1,6 +1,6 @@
 # Baddy Mixer
 
-Singles round-robin mixer for badminton coaching sessions. Pair players fairly by score, rotate sit-outs, and track standings round by round.
+Doubles-first round-robin mixer for badminton coaching sessions. Pair players fairly by score, rotate sit-outs, and track standings round by round.
 
 ## Web app (local / same Wi‑Fi)
 
@@ -198,7 +198,11 @@ python3 badminton_mixer.py
 
 ## How it works
 
-- Each court runs one **singles** match (2 players).
-- Up to `courts × 2` players play per round; extras sit out (+6 points).
+- Each court runs **doubles** (4 players) when possible.
+- Up to `courts × 4` players per round; extras sit out (+6 points).
+- **Leftover players** after filling doubles courts:
+  - 1 leftover → sits out
+  - 2 leftover → one **singles** match
+  - 3 leftover → one **singles** match + 1 sits out (fair rotation)
 - Round 1 pairings are shuffled; later rounds match by current standings.
 - Sit-outs rotate fairly (fewest previous sit-outs first).

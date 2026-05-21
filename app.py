@@ -5,7 +5,7 @@ from flask import Flask, redirect, render_template, request, session, url_for
 
 from mixer_core import (
     apply_bye_points,
-    apply_match_scores,
+    apply_round_scores,
     generate_round,
     sorted_standings,
 )
@@ -77,7 +77,8 @@ def round_view():
         )
         apply_bye_points(session["players_scores"], pairings["byes"])
         session["current_pairings"] = {
-            "matches": pairings["matches"],
+            "doubles": pairings["doubles"],
+            "singles": pairings["singles"],
             "byes": pairings["byes"],
             "round_num": pairings["round_num"],
             "rankings": pairings["rankings"],
@@ -93,28 +94,49 @@ def submit_scores():
         return redirect(url_for("index"))
 
     pairings = session["current_pairings"]
-    scores = []
+    doubles_scores = []
     errors = []
 
-    for i, match in enumerate(pairings["matches"]):
-        p1, p2 = match
-        raw_p1 = request.form.get(f"score_{i}_p1", "").strip()
-        raw_p2 = request.form.get(f"score_{i}_p2", "").strip()
+    def parse_score(raw, label):
         try:
-            score_p1 = int(raw_p1)
-            score_p2 = int(raw_p2)
+            score = int(raw.strip())
         except ValueError:
-            errors.append(f"Court {i + 1}: enter whole numbers for both players.")
-            continue
-        if not (0 <= score_p1 <= 11 and 0 <= score_p2 <= 11):
-            errors.append(f"Court {i + 1}: scores must be between 0 and 11.")
-            continue
-        scores.append((score_p1, score_p2))
+            errors.append(f"{label}: enter a whole number.")
+            return None
+        if not 0 <= score <= 11:
+            errors.append(f"{label}: score must be between 0 and 11.")
+            return None
+        return score
 
-    if errors or len(scores) != len(pairings["matches"]):
+    for i, match in enumerate(pairings["doubles"]):
+        court = i + 1
+        score_a = parse_score(request.form.get(f"doubles_{i}_a", ""), f"Court {court} team A")
+        score_b = parse_score(request.form.get(f"doubles_{i}_b", ""), f"Court {court} team B")
+        if score_a is None or score_b is None:
+            continue
+        doubles_scores.append((score_a, score_b))
+
+    singles_score = None
+    if pairings["singles"]:
+        court = len(pairings["doubles"]) + 1
+        p1, p2 = pairings["singles"]
+        score_p1 = parse_score(request.form.get("singles_p1", ""), f"Court {court} {p1}")
+        score_p2 = parse_score(request.form.get("singles_p2", ""), f"Court {court} {p2}")
+        if score_p1 is not None and score_p2 is not None:
+            singles_score = (score_p1, score_p2)
+
+    expected_doubles = len(pairings["doubles"])
+    singles_ok = not pairings["singles"] or singles_score is not None
+    if errors or len(doubles_scores) != expected_doubles or not singles_ok:
         return render_template("round.html", pairings=pairings, errors=errors)
 
-    apply_match_scores(session["players_scores"], pairings["matches"], scores)
+    apply_round_scores(
+        session["players_scores"],
+        pairings["doubles"],
+        pairings["singles"],
+        doubles_scores,
+        singles_score,
+    )
     session.pop("current_pairings", None)
     session.modified = True
 
