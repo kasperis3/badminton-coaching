@@ -5,11 +5,13 @@ from datetime import timedelta
 from flask import Flask, redirect, render_template, request, session, url_for
 
 from mixer_core import (
+    SchedulingError,
     apply_bye_points,
     apply_round_scores,
     generate_round,
     record_games_played,
     standings_rows,
+    validate_session,
 )
 
 app = Flask(__name__)
@@ -49,6 +51,10 @@ def start_session():
         errors.append("Enter at least 1 court.")
     if len(players) < 2:
         errors.append("Add at least 2 unique player names.")
+    else:
+        court_err = validate_session(len(players), num_courts)
+        if court_err:
+            errors.append(court_err)
 
     if errors:
         return render_template(
@@ -78,16 +84,24 @@ def round_view():
         return redirect(url_for("index"))
 
     if "current_pairings" not in session:
-        pairings = generate_round(
-            session["num_courts"],
-            session["players_scores"],
-            session["sit_out_history"],
-            session["singles_history"],
-            session["partner_history"],
-            session["matchup_history"],
-            session["singles_matchup_history"],
-            session["round_num"],
-        )
+        try:
+            pairings = generate_round(
+                session["num_courts"],
+                session["players_scores"],
+                session["sit_out_history"],
+                session["singles_history"],
+                session["partner_history"],
+                session["matchup_history"],
+                session["singles_matchup_history"],
+                session["round_num"],
+            )
+        except SchedulingError as e:
+            return render_template(
+                "setup.html",
+                errors=[str(e)],
+                num_courts=session["num_courts"],
+                players="\n".join(session["players_scores"].keys()),
+            )
         apply_bye_points(session["players_scores"], pairings["byes"])
         record_games_played(
             session["games_played"], pairings["doubles"], pairings["singles"]

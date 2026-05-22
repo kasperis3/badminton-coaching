@@ -1,11 +1,11 @@
-import random
-
 from mixer_core import (
+    SchedulingError,
     apply_bye_points,
     apply_round_scores,
     generate_round,
     record_games_played,
     standings_rows,
+    validate_session,
 )
 
 
@@ -36,6 +36,16 @@ def setup_session():
             print("  That name already exists. Please use a unique name or add an initial.")
             continue
         player_list.append(name)
+
+    while True:
+        err = validate_session(len(player_list), num_courts)
+        if not err:
+            break
+        print(f"\n  {err}")
+        try:
+            num_courts = int(input("Enter the number of courts available: "))
+        except ValueError:
+            print("Invalid input. Please enter a number.")
 
     players_scores = {name: 0 for name in player_list}
     games_played = {name: 0 for name in player_list}
@@ -140,16 +150,20 @@ def main():
     round_num = 1
 
     while True:
-        pairings = generate_round(
-            num_courts,
-            players_scores,
-            sit_out_history,
-            singles_history,
-            partner_history,
-            matchup_history,
-            singles_matchup_history,
-            round_num,
-        )
+        try:
+            pairings = generate_round(
+                num_courts,
+                players_scores,
+                sit_out_history,
+                singles_history,
+                partner_history,
+                matchup_history,
+                singles_matchup_history,
+                round_num,
+            )
+        except SchedulingError as e:
+            print(f"\nScheduling error: {e}")
+            break
         apply_bye_points(players_scores, pairings["byes"])
         record_games_played(games_played, pairings["doubles"], pairings["singles"])
         display_round(pairings, players_scores, games_played)

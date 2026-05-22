@@ -4,7 +4,8 @@
 {% block content %}
 <section class="card">
   <h1>Start session</h1>
-  <p class="lead">Set courts and players, then generate fair doubles matchups each round.</p>
+  <p class="lead">Set courts and players. Each round has <strong>exactly 1 sit-out</strong>; everyone else plays doubles and/or singles.</p>
+  <p class="hint">If setup fails, add courts or change the player count (e.g. 9 players → 2 courts, 11 players → 3 courts).</p>
 
   {% if errors %}
   <ul class="alert alert-error">

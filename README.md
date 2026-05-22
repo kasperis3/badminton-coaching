@@ -200,6 +200,7 @@ python3 badminton_mixer.py
 
 - Each court runs **doubles** (4 players) when possible.
 - Up to `courts × 4` players per round; extras sit out (+6 points).
+- **Exactly 1 sit-out per round** (never 0, never 2+). Setup checks that you have enough courts.
 - **Leftover players** after filling doubles courts:
   - 1 leftover → sits out
   - 2 leftover → one **singles** match
