@@ -1,19 +1,22 @@
 import random
 
 MAX_SINGLES_GAMES = 2
+MAX_SIT_OUTS = 1
 
 
-def select_sitters(ranked_names, sit_out_history, players_scores, count):
-    sitters = []
-    pool = ranked_names.copy()
+def select_sitters(pool, sit_out_history, players_scores, count):
+    """Pick sitters: max MAX_SIT_OUTS each. Returns as many as possible (may be fewer)."""
+    pool = pool.copy()
+    selected = []
     for _ in range(count):
-        min_sits = min(sit_out_history[p] for p in pool)
-        eligible = [p for p in pool if sit_out_history[p] == min_sits]
-        sitter = sorted(eligible, key=lambda x: players_scores[x])[0]
-        sitters.append(sitter)
-        sit_out_history[sitter] += 1
-        pool.remove(sitter)
-    return sitters
+        under_cap = [p for p in pool if sit_out_history.get(p, 0) < MAX_SIT_OUTS]
+        if not under_cap:
+            break
+        pick = sorted(under_cap, key=lambda p: (sit_out_history.get(p, 0), players_scores[p]))[0]
+        selected.append(pick)
+        sit_out_history[pick] = sit_out_history.get(pick, 0) + 1
+        pool.remove(pick)
+    return selected
 
 
 def select_singles_players(pool, singles_history, players_scores, count=2):
@@ -31,9 +34,29 @@ def select_singles_players(pool, singles_history, players_scores, count=2):
     return tuple(selected)
 
 
-def sit_out_players(players, sit_out_history):
-    for player in players:
-        sit_out_history[player] += 1
+def form_singles_pair(anchor, pool, singles_history, players_scores):
+    """Pair anchor with a partner for singles when anchor cannot sit out again."""
+    if singles_history.get(anchor, 0) >= MAX_SINGLES_GAMES:
+        return None
+    others = [
+        p
+        for p in pool
+        if p != anchor and singles_history.get(p, 0) < MAX_SINGLES_GAMES
+    ]
+    if not others:
+        return None
+    partner = sorted(others, key=lambda p: (singles_history.get(p, 0), players_scores[p]))[0]
+    singles_history[anchor] = singles_history.get(anchor, 0) + 1
+    singles_history[partner] = singles_history.get(partner, 0) + 1
+    return (anchor, partner)
+
+
+def try_sit_out(player, sitting_out, sit_out_history):
+    if sit_out_history.get(player, 0) < MAX_SIT_OUTS:
+        sitting_out.append(player)
+        sit_out_history[player] = sit_out_history.get(player, 0) + 1
+        return True
+    return False
 
 
 def generate_round(num_courts, players_scores, sit_out_history, singles_history, round_num):
@@ -44,32 +67,33 @@ def generate_round(num_courts, players_scores, sit_out_history, singles_history,
 
     active = ranked_names.copy()
     if len(active) > doubles_capacity:
-        sitting_out.extend(
-            select_sitters(active, sit_out_history, players_scores, len(active) - doubles_capacity)
-        )
+        need = len(active) - doubles_capacity
+        sitting_out.extend(select_sitters(active, sit_out_history, players_scores, need))
         active = [p for p in active if p not in sitting_out]
 
     leftover = active[(len(active) // 4) * 4 :]
 
     singles = None
     if len(leftover) == 1:
-        sitting_out.append(leftover[0])
-        sit_out_history[leftover[0]] += 1
+        player = leftover[0]
+        if not try_sit_out(player, sitting_out, sit_out_history):
+            singles = form_singles_pair(player, active, singles_history, players_scores)
     elif len(leftover) in (2, 3):
         pair = select_singles_players(leftover, singles_history, players_scores)
         if not pair:
             pair = select_singles_players(active, singles_history, players_scores)
         if pair:
             singles = pair
-            sitters = [p for p in leftover if p not in pair]
-            sitting_out.extend(sitters)
-            sit_out_players(sitters, sit_out_history)
+            for player in leftover:
+                if player not in pair:
+                    try_sit_out(player, sitting_out, sit_out_history)
         else:
-            sitting_out.extend(leftover)
-            sit_out_players(leftover, sit_out_history)
+            for player in leftover:
+                try_sit_out(player, sitting_out, sit_out_history)
 
     still_playing = [
-        p for p in ranked_names
+        p
+        for p in ranked_names
         if p in active and p not in sitting_out and (not singles or p not in singles)
     ]
     doubles_player_count = (len(still_playing) // 4) * 4

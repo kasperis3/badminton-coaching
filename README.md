@@ -205,5 +205,7 @@ python3 badminton_mixer.py
   - 2 leftover → one **singles** match
   - 3 leftover → one **singles** match + 1 sits out (fair rotation)
 - Each player plays **singles at most twice** per session; lower scorers are preferred for singles slots so bottom players rotate in more.
+- Each player **sits out at most once** per session; if they cannot sit again, they are scheduled to play instead.
+- Rounds continue indefinitely until you tap **End session** (session data is kept for 7 days).
 - Round 1 pairings are shuffled; later rounds match by current standings.
 - Sit-outs rotate fairly (fewest previous sit-outs first).

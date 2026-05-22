@@ -1,5 +1,6 @@
 import os
 import socket
+from datetime import timedelta
 
 from flask import Flask, redirect, render_template, request, session, url_for
 
@@ -12,6 +13,7 @@ from mixer_core import (
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "baddy-dev-change-me-in-production")
+app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=7)
 
 
 def parse_players(raw_names):
@@ -55,6 +57,7 @@ def start_session():
             players=request.form.get("players", ""),
         )
 
+    session.permanent = True
     session["num_courts"] = num_courts
     session["players_scores"] = {name: 0 for name in players}
     session["sit_out_history"] = {name: 0 for name in players}
