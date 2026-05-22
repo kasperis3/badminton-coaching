@@ -39,8 +39,19 @@ def setup_session():
     players_scores = {name: 0 for name in player_list}
     sit_out_history = {name: 0 for name in player_list}
     singles_history = {name: 0 for name in player_list}
+    partner_history = {}
+    matchup_history = {}
+    singles_matchup_history = {}
 
-    return num_courts, players_scores, sit_out_history, singles_history
+    return (
+        num_courts,
+        players_scores,
+        sit_out_history,
+        singles_history,
+        partner_history,
+        matchup_history,
+        singles_matchup_history,
+    )
 
 
 def display_round(pairings, players_scores):
@@ -111,12 +122,27 @@ def enter_scores(pairings, players_scores):
 
 
 def main():
-    num_courts, players_scores, sit_out_history, singles_history = setup_session()
+    (
+        num_courts,
+        players_scores,
+        sit_out_history,
+        singles_history,
+        partner_history,
+        matchup_history,
+        singles_matchup_history,
+    ) = setup_session()
     round_num = 1
 
     while True:
         pairings = generate_round(
-            num_courts, players_scores, sit_out_history, singles_history, round_num
+            num_courts,
+            players_scores,
+            sit_out_history,
+            singles_history,
+            partner_history,
+            matchup_history,
+            singles_matchup_history,
+            round_num,
         )
         display_round(pairings, players_scores)
         enter_scores(pairings, players_scores)
