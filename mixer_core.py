@@ -1,5 +1,7 @@
 import random
 
+MAX_SINGLES_GAMES = 2
+
 
 def select_sitters(ranked_names, sit_out_history, players_scores, count):
     sitters = []
@@ -14,7 +16,27 @@ def select_sitters(ranked_names, sit_out_history, players_scores, count):
     return sitters
 
 
-def generate_round(num_courts, players_scores, sit_out_history, round_num):
+def select_singles_players(pool, singles_history, players_scores, count=2):
+    """Pick singles players: max MAX_SINGLES_GAMES each, favor lower scorers."""
+    pool = pool.copy()
+    selected = []
+    for _ in range(count):
+        under_cap = [p for p in pool if singles_history.get(p, 0) < MAX_SINGLES_GAMES]
+        if not under_cap:
+            return None
+        pick = sorted(under_cap, key=lambda p: (singles_history.get(p, 0), players_scores[p]))[0]
+        selected.append(pick)
+        singles_history[pick] = singles_history.get(pick, 0) + 1
+        pool.remove(pick)
+    return tuple(selected)
+
+
+def sit_out_players(players, sit_out_history):
+    for player in players:
+        sit_out_history[player] += 1
+
+
+def generate_round(num_courts, players_scores, sit_out_history, singles_history, round_num):
     sorted_players = sorted(players_scores.items(), key=lambda x: x[1], reverse=True)
     ranked_names = [p[0] for p in sorted_players]
     doubles_capacity = num_courts * 4
@@ -27,21 +49,31 @@ def generate_round(num_courts, players_scores, sit_out_history, round_num):
         )
         active = [p for p in active if p not in sitting_out]
 
-    doubles_player_count = (len(active) // 4) * 4
-    doubles_pool = active[:doubles_player_count]
-    leftover = active[doubles_player_count:]
+    leftover = active[(len(active) // 4) * 4 :]
 
     singles = None
     if len(leftover) == 1:
         sitting_out.append(leftover[0])
         sit_out_history[leftover[0]] += 1
-    elif len(leftover) == 2:
-        singles = (leftover[0], leftover[1])
-    elif len(leftover) == 3:
-        sitter = select_sitters(leftover, sit_out_history, players_scores, 1)[0]
-        sitting_out.append(sitter)
-        playing = [p for p in leftover if p != sitter]
-        singles = (playing[0], playing[1])
+    elif len(leftover) in (2, 3):
+        pair = select_singles_players(leftover, singles_history, players_scores)
+        if not pair:
+            pair = select_singles_players(active, singles_history, players_scores)
+        if pair:
+            singles = pair
+            sitters = [p for p in leftover if p not in pair]
+            sitting_out.extend(sitters)
+            sit_out_players(sitters, sit_out_history)
+        else:
+            sitting_out.extend(leftover)
+            sit_out_players(leftover, sit_out_history)
+
+    still_playing = [
+        p for p in ranked_names
+        if p in active and p not in sitting_out and (not singles or p not in singles)
+    ]
+    doubles_player_count = (len(still_playing) // 4) * 4
+    doubles_pool = still_playing[:doubles_player_count]
 
     if round_num == 1:
         random.shuffle(doubles_pool)

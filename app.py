@@ -58,6 +58,7 @@ def start_session():
     session["num_courts"] = num_courts
     session["players_scores"] = {name: 0 for name in players}
     session["sit_out_history"] = {name: 0 for name in players}
+    session["singles_history"] = {name: 0 for name in players}
     session["round_num"] = 1
 
     return redirect(url_for("round_view"))
@@ -73,6 +74,7 @@ def round_view():
             session["num_courts"],
             session["players_scores"],
             session["sit_out_history"],
+            session["singles_history"],
             session["round_num"],
         )
         apply_bye_points(session["players_scores"], pairings["byes"])
