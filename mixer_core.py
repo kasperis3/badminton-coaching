@@ -3,16 +3,19 @@ MAX_SIT_OUTS = 1
 
 
 def partner_key(side):
-    return tuple(sorted(side))
+    """JSON-safe session key for a doubles pair."""
+    return "|".join(sorted(side))
 
 
 def matchup_key(side_a, side_b):
+    """JSON-safe session key for a doubles team vs team."""
     a, b = partner_key(side_a), partner_key(side_b)
-    return (a, b) if a < b else (b, a)
+    return f"{a}::{b}" if a < b else f"{b}::{a}"
 
 
 def singles_key(p1, p2):
-    return tuple(sorted([p1, p2]))
+    """JSON-safe session key for a singles matchup."""
+    return "|".join(sorted([p1, p2]))
 
 
 def select_sitters(pool, sit_out_history, players_scores, count):
