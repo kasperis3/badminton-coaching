@@ -8,7 +8,8 @@ from mixer_core import (
     apply_bye_points,
     apply_round_scores,
     generate_round,
-    sorted_standings,
+    record_games_played,
+    standings_rows,
 )
 
 app = Flask(__name__)
@@ -60,6 +61,7 @@ def start_session():
     session.permanent = True
     session["num_courts"] = num_courts
     session["players_scores"] = {name: 0 for name in players}
+    session["games_played"] = {name: 0 for name in players}
     session["sit_out_history"] = {name: 0 for name in players}
     session["singles_history"] = {name: 0 for name in players}
     session["partner_history"] = {}
@@ -87,12 +89,18 @@ def round_view():
             session["round_num"],
         )
         apply_bye_points(session["players_scores"], pairings["byes"])
+        record_games_played(
+            session["games_played"], pairings["doubles"], pairings["singles"]
+        )
         session["current_pairings"] = {
             "doubles": pairings["doubles"],
             "singles": pairings["singles"],
             "byes": pairings["byes"],
             "round_num": pairings["round_num"],
             "rankings": pairings["rankings"],
+            "standings": standings_rows(
+                session["players_scores"], session["games_played"]
+            ),
         }
         session.modified = True
 
@@ -154,7 +162,9 @@ def submit_scores():
     return render_template(
         "between_rounds.html",
         round_num=session["round_num"],
-        standings=sorted_standings(session["players_scores"]),
+        standings=standings_rows(
+            session["players_scores"], session["games_played"]
+        ),
     )
 
 
@@ -171,7 +181,7 @@ def next_round():
 def end_session():
     if "players_scores" not in session:
         return redirect(url_for("index"))
-    standings = sorted_standings(session["players_scores"])
+    standings = standings_rows(session["players_scores"], session["games_played"])
     session.clear()
     return render_template("standings.html", standings=standings)
 

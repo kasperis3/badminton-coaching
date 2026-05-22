@@ -4,7 +4,8 @@ from mixer_core import (
     apply_bye_points,
     apply_round_scores,
     generate_round,
-    sorted_standings,
+    record_games_played,
+    standings_rows,
 )
 
 
@@ -37,6 +38,7 @@ def setup_session():
         player_list.append(name)
 
     players_scores = {name: 0 for name in player_list}
+    games_played = {name: 0 for name in player_list}
     sit_out_history = {name: 0 for name in player_list}
     singles_history = {name: 0 for name in player_list}
     partner_history = {}
@@ -46,6 +48,7 @@ def setup_session():
     return (
         num_courts,
         players_scores,
+        games_played,
         sit_out_history,
         singles_history,
         partner_history,
@@ -54,14 +57,16 @@ def setup_session():
     )
 
 
-def display_round(pairings, players_scores):
+def display_round(pairings, players_scores, games_played):
     round_num = pairings["round_num"]
     print(f"\n======================================")
     print(f"      GENERATING PAIRINGS: ROUND {round_num}")
     print(f"======================================")
     if round_num > 1:
-        rankings = pairings["rankings"]
-        print("Current Rankings:", ", ".join([f"{k}({v}pts)" for k, v in rankings]))
+        for rank, (name, score, games) in enumerate(
+            standings_rows(players_scores, games_played), 1
+        ):
+            print(f"  {rank:2d}. {name:<12} {score:3d} pts  {games} GP")
 
     court_idx = 1
     for side_a, side_b in pairings["doubles"]:
@@ -125,6 +130,7 @@ def main():
     (
         num_courts,
         players_scores,
+        games_played,
         sit_out_history,
         singles_history,
         partner_history,
@@ -144,7 +150,9 @@ def main():
             singles_matchup_history,
             round_num,
         )
-        display_round(pairings, players_scores)
+        apply_bye_points(players_scores, pairings["byes"])
+        record_games_played(games_played, pairings["doubles"], pairings["singles"])
+        display_round(pairings, players_scores, games_played)
         enter_scores(pairings, players_scores)
 
         cont = input("\nGenerate next round? (y/n): ").strip().lower()
@@ -152,8 +160,10 @@ def main():
             print("\n======================================")
             print("        FINAL SESSION STANDINGS       ")
             print("======================================")
-            for rank, (player, score) in enumerate(sorted_standings(players_scores), 1):
-                print(f"{rank:2d}. {player:<15} : {score} total points")
+            for rank, (player, score, games) in enumerate(
+                standings_rows(players_scores, games_played), 1
+            ):
+                print(f"{rank:2d}. {player:<15} : {score} pts  ({games} games)")
             print("\nThanks for organizing. See you next time!")
             break
         round_num += 1

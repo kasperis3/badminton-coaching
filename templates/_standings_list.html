@@ -1,0 +1,10 @@
+<ol class="standings-list{% if final %} standings-final{% endif %}">
+  {% for name, score, games in standings %}
+  <li class="{% if final and loop.index == 1 %}top{% endif %}">
+    <span class="rank">{{ loop.index }}</span>
+    <span class="name">{{ name }}</span>
+    <span class="pts">{{ score }} pts</span>
+    <span class="games">{{ games }} GP</span>
+  </li>
+  {% endfor %}
+</ol>

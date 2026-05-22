@@ -8,12 +8,17 @@
 {% block content %}
 {% if pairings.round_num > 1 %}
 <section class="card card-compact">
-  <h2 class="section-title">Rankings</h2>
+  <h2 class="section-title">Standings (pts · games played)</h2>
+  {% if pairings.standings %}
+  {% set standings = pairings.standings %}
+  {% include "_standings_list.html" %}
+  {% else %}
   <p class="rankings-line">
     {% for name, pts in pairings.rankings %}
     <span>{{ name }} ({{ pts }})</span>{% if not loop.last %} · {% endif %}
     {% endfor %}
   </p>
+  {% endif %}
 </section>
 {% endif %}
 
@@ -112,8 +117,15 @@
 {% if pairings.byes %}
 <section class="card card-bye">
   <h2 class="section-title">Sitting out</h2>
-  <p>{{ pairings.byes | join(', ') }}</p>
+  <p class="bye-names">{{ pairings.byes | join(', ') }}</p>
   <p class="hint">+6 points each (already added)</p>
 </section>
 {% endif %}
+
+<section class="card card-actions">
+  <form method="post" action="{{ url_for('end_session') }}" class="form">
+    <button type="submit" class="btn btn-secondary btn-block">End session</button>
+  </form>
+  <a href="{{ url_for('index') }}" class="btn btn-ghost btn-block">Start over</a>
+</section>
 {% endblock %}

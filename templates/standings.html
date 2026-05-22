@@ -6,16 +6,8 @@
   <h1>Final standings</h1>
   <p class="lead">Session complete. Great coaching!</p>
 
-  <ol class="standings-list standings-final">
-    {% for player, score in standings %}
-    <li class="{% if loop.index == 1 %}top{% endif %}">
-      <span class="rank">{{ loop.index }}</span>
-      <span class="name">{{ player }}</span>
-      <span class="pts">{{ score }} pts</span>
-    </li>
-    {% endfor %}
-  </ol>
+  {% with final=true %}{% include "_standings_list.html" %}{% endwith %}
 
-  <a href="{{ url_for('index') }}" class="btn btn-primary btn-block">New session</a>
+  <a href="{{ url_for('index') }}" class="btn btn-primary btn-block">Start over</a>
 </section>
 {% endblock %}

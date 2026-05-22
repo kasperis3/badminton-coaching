@@ -8,17 +8,9 @@
 {% block content %}
 <section class="card">
   <h1>Round {{ round_num }} saved</h1>
-  <p class="lead">Standings after this round. Tap <strong>Next round</strong> to keep going — the session runs until you end it or leave the app.</p>
+  <p class="lead">Standings after this round (pts and games played). Tap <strong>Next round</strong> to keep going.</p>
 
-  <ol class="standings-list">
-    {% for player, score in standings %}
-    <li>
-      <span class="rank">{{ loop.index }}</span>
-      <span class="name">{{ player }}</span>
-      <span class="pts">{{ score }} pts</span>
-    </li>
-    {% endfor %}
-  </ol>
+  {% with final=false %}{% include "_standings_list.html" %}{% endwith %}
 
   <div class="action-stack">
     <form method="post" action="{{ url_for('next_round') }}">
@@ -27,6 +19,7 @@
     <form method="post" action="{{ url_for('end_session') }}">
       <button type="submit" class="btn btn-secondary btn-block">End session</button>
     </form>
+    <a href="{{ url_for('index') }}" class="btn btn-ghost btn-block">Start over</a>
   </div>
 </section>
 {% endblock %}

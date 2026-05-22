@@ -103,6 +103,12 @@ def try_sit_out(player, sitting_out, sit_out_history):
     return False
 
 
+def show_as_sitting_out(player, sitting_out):
+    """List player as sitting out without awarding bye points again."""
+    if player not in sitting_out:
+        sitting_out.append(player)
+
+
 def best_doubles_split(tier, partner_history, matchup_history):
     """From 4 players (strongest-first), pick teams vs teams with fewest repeats."""
     a, b, c, d = tier
@@ -119,7 +125,6 @@ def best_doubles_split(tier, partner_history, matchup_history):
             + partner_history.get(partner_key(side_b), 0)
             + matchup_history.get(matchup_key(side_a, side_b), 0) * 2
         )
-        # Prefer standard strength split (top pair vs bottom pair) on ties
         strength_penalty = 0 if side_a == (a, b) else 1
         sort_key = (cost, strength_penalty)
         if best_sort is None or sort_key < best_sort:
@@ -133,6 +138,117 @@ def record_doubles_match(side_a, side_b, partner_history, matchup_history):
     partner_history[partner_key(side_b)] = partner_history.get(partner_key(side_b), 0) + 1
     mkey = matchup_key(side_a, side_b)
     matchup_history[mkey] = matchup_history.get(mkey, 0) + 1
+
+
+def assign_singles(pool, singles, sitting_out, active, singles_history, singles_matchup_history, players_scores):
+    """Assign a singles pair from pool; return updated singles tuple or None."""
+    pair = select_singles_players(pool, singles_history, singles_matchup_history, players_scores)
+    if pair:
+        return pair
+    return singles
+
+
+def schedule_remainder(
+    remainder_players,
+    pool,
+    singles,
+    sitting_out,
+    active,
+    sit_out_history,
+    singles_history,
+    singles_matchup_history,
+    players_scores,
+):
+    """Handle 1–3 players who do not fill a full doubles court."""
+    if not remainder_players:
+        return singles
+
+    if len(remainder_players) == 1:
+        player = remainder_players[0]
+        if try_sit_out(player, sitting_out, sit_out_history):
+            return singles
+        pair = form_singles_pair(
+            player, pool, singles_history, singles_matchup_history, players_scores
+        )
+        return pair if pair else singles
+
+    if len(remainder_players) == 2:
+        pair = assign_singles(
+            remainder_players,
+            singles,
+            sitting_out,
+            active,
+            singles_history,
+            singles_matchup_history,
+            players_scores,
+        )
+        return pair
+
+    pair = assign_singles(
+        remainder_players,
+        singles,
+        sitting_out,
+        active,
+        singles_history,
+        singles_matchup_history,
+        players_scores,
+    )
+    if pair:
+        for player in remainder_players:
+            if player not in pair:
+                try_sit_out(player, sitting_out, sit_out_history)
+        return pair
+
+    for player in remainder_players:
+        try_sit_out(player, sitting_out, sit_out_history)
+    return singles
+
+
+def ensure_all_scheduled(
+    active,
+    sitting_out,
+    singles,
+    doubles_matches,
+    sit_out_history,
+    singles_history,
+    singles_matchup_history,
+    players_scores,
+    num_courts,
+):
+    """Ensure every active player is in doubles, singles, or sitting out (visible)."""
+    scheduled = set(sitting_out)
+    if singles:
+        scheduled.update(singles)
+    for side_a, side_b in doubles_matches:
+        scheduled.update(side_a)
+        scheduled.update(side_b)
+
+    unscheduled = [p for p in active if p not in scheduled]
+
+    for player in unscheduled:
+        if try_sit_out(player, sitting_out, sit_out_history):
+            scheduled.add(player)
+            continue
+        if singles is None:
+            pair = form_singles_pair(
+                player, active, singles_history, singles_matchup_history, players_scores
+            )
+            if pair:
+                singles = pair
+                scheduled.update(pair)
+                continue
+        elif player not in singles:
+            pair = form_singles_pair(
+                player, active, singles_history, singles_matchup_history, players_scores
+            )
+            if pair:
+                singles = pair
+                scheduled.update(pair)
+                continue
+        show_as_sitting_out(player, sitting_out)
+        scheduled.add(player)
+
+    return singles, sitting_out
 
 
 def generate_round(
@@ -149,53 +265,51 @@ def generate_round(
     ranked_names = [p[0] for p in sorted_players]
     doubles_capacity = num_courts * 4
     sitting_out = []
-
-    active = ranked_names.copy()
-    if len(active) > doubles_capacity:
-        need = len(active) - doubles_capacity
-        sitting_out.extend(select_sitters(active, sit_out_history, players_scores, need))
-        active = [p for p in active if p not in sitting_out]
-
-    leftover = active[(len(active) // 4) * 4 :]
-
     singles = None
-    if len(leftover) == 1:
-        player = leftover[0]
-        if not try_sit_out(player, sitting_out, sit_out_history):
-            singles = form_singles_pair(
-                player, active, singles_history, singles_matchup_history, players_scores
-            )
-    elif len(leftover) in (2, 3):
-        pair = select_singles_players(
-            leftover, singles_history, singles_matchup_history, players_scores
-        )
-        if not pair:
-            pair = select_singles_players(
-                active, singles_history, singles_matchup_history, players_scores
-            )
-        if pair:
-            singles = pair
-            for player in leftover:
-                if player not in pair:
-                    try_sit_out(player, sitting_out, sit_out_history)
-        else:
-            for player in leftover:
-                try_sit_out(player, sitting_out, sit_out_history)
-
-    still_playing = [
-        p
-        for p in ranked_names
-        if p in active and p not in sitting_out and (not singles or p not in singles)
-    ]
-    doubles_player_count = (len(still_playing) // 4) * 4
-    doubles_pool = still_playing[:doubles_player_count]
-
     doubles_matches = []
-    for i in range(0, doubles_player_count, 4):
-        tier = doubles_pool[i : i + 4]
+
+    queue = ranked_names.copy()
+
+    if len(queue) > doubles_capacity:
+        sitters = select_sitters(queue, sit_out_history, players_scores, len(queue) - doubles_capacity)
+        sitting_out.extend(sitters)
+        queue = [p for p in queue if p not in sitting_out]
+
+    remainder_count = len(queue) % 4
+    if remainder_count:
+        remainder_players = queue[-remainder_count:]
+        queue = queue[:-remainder_count]
+        singles = schedule_remainder(
+            remainder_players,
+            ranked_names,
+            singles,
+            sitting_out,
+            ranked_names,
+            sit_out_history,
+            singles_history,
+            singles_matchup_history,
+            players_scores,
+        )
+
+    while len(queue) >= 4 and len(doubles_matches) < num_courts:
+        tier = queue[:4]
+        queue = queue[4:]
         side_a, side_b = best_doubles_split(tier, partner_history, matchup_history)
         record_doubles_match(side_a, side_b, partner_history, matchup_history)
         doubles_matches.append((side_a, side_b))
+
+    active = ranked_names
+    singles, sitting_out = ensure_all_scheduled(
+        active,
+        sitting_out,
+        singles,
+        doubles_matches,
+        sit_out_history,
+        singles_history,
+        singles_matchup_history,
+        players_scores,
+        num_courts,
+    )
 
     return {
         "doubles": doubles_matches,
@@ -206,9 +320,26 @@ def generate_round(
     }
 
 
+def record_games_played(games_played, doubles_matches, singles):
+    for side_a, side_b in doubles_matches:
+        for player in side_a + side_b:
+            games_played[player] = games_played.get(player, 0) + 1
+    if singles:
+        for player in singles:
+            games_played[player] = games_played.get(player, 0) + 1
+
+
 def apply_bye_points(players_scores, byes, points=6):
+    """All sit-outs (including forced rest) receive bye points."""
     for player in byes:
         players_scores[player] += points
+
+
+def standings_rows(players_scores, games_played):
+    return [
+        (name, score, games_played.get(name, 0))
+        for name, score in sorted_standings(players_scores)
+    ]
 
 
 def apply_round_scores(players_scores, doubles, singles, doubles_scores, singles_score):
