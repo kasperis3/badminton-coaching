@@ -198,16 +198,12 @@ python3 badminton_mixer.py
 
 ## How it works
 
-- Each court runs **doubles** (4 players) when possible.
-- Up to `courts × 4` players per round; extras sit out (+6 points).
-- **Exactly 1 sit-out per round** (never 0, never 2+). Setup checks that you have enough courts.
-- **Leftover players** after filling doubles courts:
-  - 1 leftover → sits out
-  - 2 leftover → one **singles** match
-  - 3 leftover → one **singles** match + 1 sits out (fair rotation)
-- Each player plays **singles at most twice** per session; lower scorers are preferred for singles slots so bottom players rotate in more.
-- Each player **sits out at most once** per session; if they cannot sit again, they are scheduled to play instead.
-- Rounds continue indefinitely until you tap **End session** (session data is kept for 7 days).
-- **Matchup memory**: partners and opponents (doubles) and singles opponents are tracked so repeats are avoided when possible; players are still grouped by similar strength each round.
-- Round 1 pairings are shuffled; later rounds match by current standings.
-- Sit-outs rotate fairly (fewest previous sit-outs first).
+- Each court runs **doubles** (4 players) when possible; **singles** when 2 players remain after filling doubles courts.
+- **Even or odd player counts** — each round uses **0 or 1 sit-out** automatically (whichever schedules cleanly).
+- **Game to** — choose **7** (default), **11**, **15**, or **21** at session start. Match scores are 0 to that cap.
+- **Sit-out points** — about half the game cap + 1 (7→4, 11→6, 15→8, 21→11).
+- Each player plays **singles at most twice** per session; lower scorers preferred for singles rotation.
+- Each player **sits out at most once** per session (when a sit-out is needed).
+- Rounds continue until you **End session** (session data kept for 7 days).
+- **Matchup memory**: partners and opponents tracked to avoid repeats when possible; tiers still match by strength.
+- Sit-outs rotate fairly when needed (fewest previous sit-outs first).

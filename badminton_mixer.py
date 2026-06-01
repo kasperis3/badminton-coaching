@@ -1,8 +1,12 @@
 from mixer_core import (
+    ALLOWED_GAME_TO,
+    DEFAULT_GAME_TO,
     SchedulingError,
     apply_bye_points,
     apply_round_scores,
+    bye_points_for_game_to,
     generate_round,
+    normalize_game_to,
     record_games_played,
     standings_rows,
     validate_session,
@@ -22,6 +26,13 @@ def setup_session():
             print("Please enter a number greater than 0.")
         except ValueError:
             print("Invalid input. Please enter a number.")
+
+    while True:
+        raw = input(f"Game to (7/11/15/21) [{DEFAULT_GAME_TO}]: ").strip()
+        game_to = normalize_game_to(raw or DEFAULT_GAME_TO)
+        if not raw or game_to in ALLOWED_GAME_TO:
+            break
+        print(f"  Choose one of: {', '.join(map(str, ALLOWED_GAME_TO))}")
 
     print("\nEnter player names one by one (Press Enter on an empty line when done):")
     player_list = []
@@ -57,6 +68,7 @@ def setup_session():
 
     return (
         num_courts,
+        game_to,
         players_scores,
         games_played,
         sit_out_history,
@@ -67,7 +79,7 @@ def setup_session():
     )
 
 
-def display_round(pairings, players_scores, games_played):
+def display_round(pairings, players_scores, games_played, game_to, bye_points):
     round_num = pairings["round_num"]
     print(f"\n======================================")
     print(f"      GENERATING PAIRINGS: ROUND {round_num}")
@@ -92,30 +104,29 @@ def display_round(pairings, players_scores, games_played):
 
     if pairings["byes"]:
         names = ", ".join(pairings["byes"])
-        print(f"\nSitting Out: {names} (Awarded 6 automatic points each)")
-        apply_bye_points(players_scores, pairings["byes"])
+        print(f"\nSitting Out: {names} (Awarded {bye_points} automatic points each)")
 
     print()
 
 
-def get_valid_score(prompt):
+def get_valid_score(prompt, game_to):
     while True:
         try:
             score = int(input(prompt))
-            if 0 <= score <= 11:
+            if 0 <= score <= game_to:
                 return score
-            print("Scores for this format must be between 0 and 11 points.")
+            print(f"Scores for this format must be between 0 and {game_to} points.")
         except ValueError:
             print("Invalid input. Please enter a whole number.")
 
 
-def enter_scores(pairings, players_scores):
-    print("--- Enter final match points (0 to 11) ---")
+def enter_scores(pairings, players_scores, game_to):
+    print(f"--- Enter final match points (0 to {game_to}) ---")
     doubles_scores = []
     for idx, (side_a, side_b) in enumerate(pairings["doubles"], 1):
         print(f"\nCourt {idx} (Doubles):")
-        score_a = get_valid_score(f"  Points for ({side_a[0]} & {side_a[1]}): ")
-        score_b = get_valid_score(f"  Points for ({side_b[0]} & {side_b[1]}): ")
+        score_a = get_valid_score(f"  Points for ({side_a[0]} & {side_a[1]}): ", game_to)
+        score_b = get_valid_score(f"  Points for ({side_b[0]} & {side_b[1]}): ", game_to)
         doubles_scores.append((score_a, score_b))
 
     singles_score = None
@@ -123,8 +134,8 @@ def enter_scores(pairings, players_scores):
         p1, p2 = pairings["singles"]
         court_num = len(pairings["doubles"]) + 1
         print(f"\nCourt {court_num} (Singles):")
-        score_p1 = get_valid_score(f"  Points for {p1}: ")
-        score_p2 = get_valid_score(f"  Points for {p2}: ")
+        score_p1 = get_valid_score(f"  Points for {p1}: ", game_to)
+        score_p2 = get_valid_score(f"  Points for {p2}: ", game_to)
         singles_score = (score_p1, score_p2)
 
     apply_round_scores(
@@ -139,6 +150,7 @@ def enter_scores(pairings, players_scores):
 def main():
     (
         num_courts,
+        game_to,
         players_scores,
         games_played,
         sit_out_history,
@@ -147,6 +159,7 @@ def main():
         matchup_history,
         singles_matchup_history,
     ) = setup_session()
+    bye_points = bye_points_for_game_to(game_to)
     round_num = 1
 
     while True:
@@ -164,10 +177,10 @@ def main():
         except SchedulingError as e:
             print(f"\nScheduling error: {e}")
             break
-        apply_bye_points(players_scores, pairings["byes"])
+        apply_bye_points(players_scores, pairings["byes"], bye_points)
         record_games_played(games_played, pairings["doubles"], pairings["singles"])
-        display_round(pairings, players_scores, games_played)
-        enter_scores(pairings, players_scores)
+        display_round(pairings, players_scores, games_played, game_to, bye_points)
+        enter_scores(pairings, players_scores, game_to)
 
         cont = input("\nGenerate next round? (y/n): ").strip().lower()
         if cont != "y":

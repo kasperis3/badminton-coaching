@@ -4,8 +4,7 @@
 {% block content %}
 <section class="card">
   <h1>Start session</h1>
-  <p class="lead">Set courts and players. Each round has <strong>exactly 1 sit-out</strong>; everyone else plays doubles and/or singles.</p>
-  <p class="hint">If setup fails, add courts or change the player count (e.g. 9 players → 2 courts, 11 players → 3 courts).</p>
+  <p class="lead">Set courts, game format, and players. Each round uses 0 or 1 sit-out so even groups work too.</p>
 
   {% if errors %}
   <ul class="alert alert-error">
@@ -30,9 +29,27 @@
       >
     </label>
 
+    <fieldset class="field">
+      <span class="label">Game to</span>
+      <div class="radio-row">
+        {% for pts in [7, 11, 15, 21] %}
+        <label class="radio-option">
+          <input
+            type="radio"
+            name="game_to"
+            value="{{ pts }}"
+            {% if (game_to | default(7)) == pts %}checked{% endif %}
+          >
+          <span>{{ pts }}</span>
+        </label>
+        {% endfor %}
+      </div>
+      <span class="hint">Default is 7. Sit-out bye is about half + 1 (e.g. 7→4 pts).</span>
+    </fieldset>
+
     <label class="field">
       <span class="label">Players</span>
-      <span class="hint">One name per line (at least 2)</span>
+      <span class="hint">One name per line (at least 2). Even or odd counts OK.</span>
       <textarea
         name="players"
         rows="8"

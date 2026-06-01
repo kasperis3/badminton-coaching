@@ -50,10 +50,10 @@
             type="number"
             name="doubles_{{ i }}_a"
             min="0"
-            max="11"
+            max="{{ game_to }}"
             inputmode="numeric"
             required
-            placeholder="0–11"
+            placeholder="0–{{ game_to }}"
           >
         </label>
         <label class="score-field">
@@ -62,10 +62,10 @@
             type="number"
             name="doubles_{{ i }}_b"
             min="0"
-            max="11"
+            max="{{ game_to }}"
             inputmode="numeric"
             required
-            placeholder="0–11"
+            placeholder="0–{{ game_to }}"
           >
         </label>
       </div>
@@ -88,10 +88,10 @@
             type="number"
             name="singles_p1"
             min="0"
-            max="11"
+            max="{{ game_to }}"
             inputmode="numeric"
             required
-            placeholder="0–11"
+            placeholder="0–{{ game_to }}"
           >
         </label>
         <label class="score-field">
@@ -100,10 +100,10 @@
             type="number"
             name="singles_p2"
             min="0"
-            max="11"
+            max="{{ game_to }}"
             inputmode="numeric"
             required
-            placeholder="0–11"
+            placeholder="0–{{ game_to }}"
           >
         </label>
       </div>
@@ -118,7 +118,7 @@
 <section class="card card-bye">
   <h2 class="section-title">Sitting out</h2>
   <p class="bye-names">{{ pairings.byes | join(', ') }}</p>
-  <p class="hint">+6 points each (already added)</p>
+  <p class="hint">+{{ bye_points }} points each (already added)</p>
 </section>
 {% endif %}
 

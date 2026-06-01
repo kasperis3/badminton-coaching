@@ -1,5 +1,7 @@
 MAX_SINGLES_GAMES = 2
 MAX_SIT_OUTS = 1
+ALLOWED_GAME_TO = (7, 11, 15, 21)
+DEFAULT_GAME_TO = 7
 
 
 class SchedulingError(Exception):
@@ -19,37 +21,55 @@ def singles_key(p1, p2):
     return "|".join(sorted([p1, p2]))
 
 
-def min_courts_required(num_players):
-    """
-    Minimum courts so (num_players - 1) can play with exactly one sit-out.
-    Playing count uses doubles (4 per court) plus optional singles (2, one court).
-    """
-    if num_players < 2:
+def min_courts_for_playing(playing_count):
+    """Courts needed for playing_count players (doubles + optional singles)."""
+    if playing_count < 2:
         return None
-    playing = num_players - 1
-    remainder = playing % 4
+    remainder = playing_count % 4
     if remainder in (1, 3):
         return None
-    doubles_courts = playing // 4
-    singles_court = 1 if remainder == 2 else 0
-    return doubles_courts + singles_court
+    return playing_count // 4 + (1 if remainder == 2 else 0)
+
+
+def resolve_sit_outs(num_players):
+    """Return 0, 1, or None if this player count cannot be scheduled."""
+    if min_courts_for_playing(num_players) is not None:
+        return 0
+    if min_courts_for_playing(num_players - 1) is not None:
+        return 1
+    return None
 
 
 def validate_session(num_players, num_courts):
     """Return an error message, or None if valid."""
-    needed = min_courts_required(num_players)
-    if needed is None:
+    if num_players < 2:
+        return None
+    sit_outs = resolve_sit_outs(num_players)
+    if sit_outs is None:
         return (
-            f"{num_players} players cannot be scheduled with only 1 sit-out per round "
+            f"{num_players} players cannot be scheduled "
             f"(try adding or removing 1 player)."
         )
+    needed = min_courts_for_playing(num_players - sit_outs)
     if num_courts < needed:
+        sit_note = "everyone plays" if sit_outs == 0 else "1 sit-out per round"
         return (
             f"Need at least {needed} court{'s' if needed != 1 else ''} for "
-            f"{num_players} players with only 1 person sitting out each round "
-            f"(you entered {num_courts})."
+            f"{num_players} players ({sit_note}; you entered {num_courts})."
         )
     return None
+
+
+def bye_points_for_game_to(game_to):
+    return game_to // 2 + 1
+
+
+def normalize_game_to(value):
+    try:
+        game_to = int(value)
+    except (TypeError, ValueError):
+        return DEFAULT_GAME_TO
+    return game_to if game_to in ALLOWED_GAME_TO else DEFAULT_GAME_TO
 
 
 def select_sitters(pool, sit_out_history, players_scores, count):
@@ -140,9 +160,9 @@ def record_doubles_match(side_a, side_b, partner_history, matchup_history):
 
 
 def assert_schedule_valid(sitting_out, singles, doubles_matches, all_players):
-    if len(sitting_out) != 1:
+    if len(sitting_out) not in (0, 1):
         raise SchedulingError(
-            f"Internal error: expected 1 sit-out, got {len(sitting_out)} ({sitting_out})."
+            f"Internal error: expected 0 or 1 sit-out, got {len(sitting_out)} ({sitting_out})."
         )
 
     assigned = {}
@@ -186,8 +206,10 @@ def generate_round(
     if err:
         raise SchedulingError(err)
 
+    sit_out_count = resolve_sit_outs(num_players)
     sitting_out = []
-    assign_round_sitter(ranked_names, sitting_out, sit_out_history, players_scores)
+    if sit_out_count == 1:
+        assign_round_sitter(ranked_names, sitting_out, sit_out_history, players_scores)
 
     queue = [p for p in ranked_names if p not in sitting_out]
     singles = None
@@ -242,7 +264,7 @@ def record_games_played(games_played, doubles_matches, singles):
             games_played[player] = games_played.get(player, 0) + 1
 
 
-def apply_bye_points(players_scores, byes, points=6):
+def apply_bye_points(players_scores, byes, points):
     for player in byes:
         players_scores[player] += points
 

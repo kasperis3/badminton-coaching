@@ -340,3 +340,42 @@ textarea:focus {
   font-weight: 600;
   margin: 0;
 }
+
+.radio-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.radio-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--tap);
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+  cursor: pointer;
+  flex: 1;
+  min-width: 4rem;
+  justify-content: center;
+  font-weight: 600;
+}
+
+.radio-option:has(input:checked) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.radio-option input {
+  width: auto;
+  min-height: auto;
+  margin: 0;
+}
+
+fieldset.field {
+  border: none;
+  padding: 0;
+  margin: 0;
+}

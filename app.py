@@ -8,7 +8,9 @@ from mixer_core import (
     SchedulingError,
     apply_bye_points,
     apply_round_scores,
+    bye_points_for_game_to,
     generate_round,
+    normalize_game_to,
     record_games_played,
     standings_rows,
     validate_session,
@@ -31,6 +33,11 @@ def parse_players(raw_names):
     return names
 
 
+def session_scoring():
+    game_to = normalize_game_to(session.get("game_to"))
+    return game_to, bye_points_for_game_to(game_to)
+
+
 @app.route("/")
 def index():
     session.clear()
@@ -44,6 +51,7 @@ def start_session():
     except ValueError:
         num_courts = 0
 
+    game_to = normalize_game_to(request.form.get("game_to"))
     players = parse_players(request.form.get("players", ""))
 
     errors = []
@@ -61,11 +69,13 @@ def start_session():
             "setup.html",
             errors=errors,
             num_courts=num_courts or "",
+            game_to=game_to,
             players=request.form.get("players", ""),
         )
 
     session.permanent = True
     session["num_courts"] = num_courts
+    session["game_to"] = game_to
     session["players_scores"] = {name: 0 for name in players}
     session["games_played"] = {name: 0 for name in players}
     session["sit_out_history"] = {name: 0 for name in players}
@@ -82,6 +92,8 @@ def start_session():
 def round_view():
     if "players_scores" not in session:
         return redirect(url_for("index"))
+
+    game_to, bye_points = session_scoring()
 
     if "current_pairings" not in session:
         try:
@@ -100,9 +112,10 @@ def round_view():
                 "setup.html",
                 errors=[str(e)],
                 num_courts=session["num_courts"],
+                game_to=game_to,
                 players="\n".join(session["players_scores"].keys()),
             )
-        apply_bye_points(session["players_scores"], pairings["byes"])
+        apply_bye_points(session["players_scores"], pairings["byes"], bye_points)
         record_games_played(
             session["games_played"], pairings["doubles"], pairings["singles"]
         )
@@ -118,7 +131,12 @@ def round_view():
         }
         session.modified = True
 
-    return render_template("round.html", pairings=session["current_pairings"])
+    return render_template(
+        "round.html",
+        pairings=session["current_pairings"],
+        game_to=game_to,
+        bye_points=bye_points,
+    )
 
 
 @app.route("/round/scores", methods=["POST"])
@@ -126,6 +144,7 @@ def submit_scores():
     if "current_pairings" not in session:
         return redirect(url_for("index"))
 
+    game_to, bye_points = session_scoring()
     pairings = session["current_pairings"]
     doubles_scores = []
     errors = []
@@ -136,8 +155,8 @@ def submit_scores():
         except ValueError:
             errors.append(f"{label}: enter a whole number.")
             return None
-        if not 0 <= score <= 11:
-            errors.append(f"{label}: score must be between 0 and 11.")
+        if not 0 <= score <= game_to:
+            errors.append(f"{label}: score must be between 0 and {game_to}.")
             return None
         return score
 
@@ -161,7 +180,13 @@ def submit_scores():
     expected_doubles = len(pairings["doubles"])
     singles_ok = not pairings["singles"] or singles_score is not None
     if errors or len(doubles_scores) != expected_doubles or not singles_ok:
-        return render_template("round.html", pairings=pairings, errors=errors)
+        return render_template(
+            "round.html",
+            pairings=pairings,
+            errors=errors,
+            game_to=game_to,
+            bye_points=bye_points,
+        )
 
     apply_round_scores(
         session["players_scores"],
