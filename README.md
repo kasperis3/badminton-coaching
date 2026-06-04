@@ -198,12 +198,32 @@ python3 badminton_mixer.py
 
 ## How it works
 
-- Each court runs **doubles** (4 players) when possible; **singles** when 2 players remain after filling doubles courts.
-- **Even or odd player counts** — each round uses **0 or 1 sit-out** automatically (whichever schedules cleanly).
+### Competition mode
+
+At setup, choose **Doubles** (default) or **Singles**:
+
+- **Doubles** — courts are doubles when possible; if 2 players remain after doubles courts, one **singles** match uses a court. **0 or 1 sit-out** per round as needed.
+- **Singles** — every court is one singles match (2 players). Odd player counts use **1 sit-out**; even counts use all players.
+
+### Pairing phases
+
+- **Rounds 1–3** — active players are shuffled; pairings are exploratory (matchup history still avoids repeats when possible).
+- **Round 4+** — players are grouped by **score** (ranked tiers / similar-strength singles pairs).
+
+### Scoring and rotation
+
 - **Game to** — choose **7** (default), **11**, **15**, or **21** at session start. Match scores are 0 to that cap.
-- **Sit-out points** — about half the game cap + 1 (7→4, 11→6, 15→8, 21→11).
-- Each player plays **singles at most twice** per session; lower scorers preferred for singles rotation.
+- **Sit-out points** — half the game cap + 1 (7→4, 11→6, 15→8, 21→11).
+- In doubles mode, each player plays **singles at most twice** per session; lower scorers preferred for singles rotation.
 - Each player **sits out at most once** per session (when a sit-out is needed).
-- Rounds continue until you **End session** (session data kept for 7 days).
-- **Matchup memory**: partners and opponents tracked to avoid repeats when possible; tiers still match by strength.
+- **Matchup memory**: partners and opponents tracked to avoid repeats when possible.
 - Sit-outs rotate fairly when needed (fewest previous sit-outs first).
+
+### Session history and resume (web)
+
+- **Auto-save** — in-progress sessions are stored in the browser (`localStorage`) on each round page.
+- **Resume** — after a refresh, use **Resume session** on the setup page to continue.
+- **Past sessions** — when you **End session**, standings are archived locally (up to ~20 entries, newest first).
+- History and resume are **per browser/device only** — not synced across phones or coaches.
+
+Server-side Flask sessions still expire after about **7 days**; localStorage is independent and survives until you clear site data.

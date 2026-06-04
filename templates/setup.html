@@ -2,9 +2,15 @@
 {% block title %}New Session · Baddy Mixer{% endblock %}
 
 {% block content %}
+<section class="card" id="resume-session-box" hidden>
+  <h2 class="section-title">Resume</h2>
+  <p class="lead" id="resume-session-label">In-progress session on this device.</p>
+  <button type="button" id="resume-session-btn" class="btn btn-primary btn-block">Resume session</button>
+</section>
+
 <section class="card">
   <h1>Start session</h1>
-  <p class="lead">Set courts, game format, and players. Each round uses 0 or 1 sit-out so even groups work too.</p>
+  <p class="lead">Set courts, competition type, game format, and players. Rounds 1–3 are randomized; from round 4, similar scores are grouped.</p>
 
   {% if errors %}
   <ul class="alert alert-error">
@@ -28,6 +34,31 @@
         placeholder="e.g. 4"
       >
     </label>
+
+    <fieldset class="field">
+      <span class="label">Competition</span>
+      <div class="radio-row">
+        <label class="radio-option">
+          <input
+            type="radio"
+            name="competition_mode"
+            value="doubles"
+            {% if (competition_mode | default('doubles')) == 'doubles' %}checked{% endif %}
+          >
+          <span>Doubles</span>
+        </label>
+        <label class="radio-option">
+          <input
+            type="radio"
+            name="competition_mode"
+            value="singles"
+            {% if competition_mode == 'singles' %}checked{% endif %}
+          >
+          <span>Singles</span>
+        </label>
+      </div>
+      <span class="hint">Doubles fills courts with 4-player games (+ optional singles court). Singles uses each court for 1v1.</span>
+    </fieldset>
 
     <fieldset class="field">
       <span class="label">Game to</span>
@@ -60,5 +91,10 @@
 
     <button type="submit" class="btn btn-primary btn-block">Start round 1</button>
   </form>
+</section>
+
+<section class="card" id="past-sessions-box">
+  <h2 class="section-title">Past sessions (this device)</h2>
+  <ul class="history-list" id="past-sessions-list"></ul>
 </section>
 {% endblock %}

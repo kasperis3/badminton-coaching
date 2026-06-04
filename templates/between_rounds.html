@@ -6,6 +6,10 @@
 {% endblock %}
 
 {% block content %}
+{% if session_snapshot %}
+<script type="application/json" id="session-snapshot-data">{{ session_snapshot | tojson }}</script>
+{% endif %}
+
 <section class="card">
   <h1>Round {{ round_num }} saved</h1>
   <p class="lead">Standings after this round (pts and games played). Tap <strong>Next round</strong> to keep going.</p>
