@@ -414,3 +414,32 @@ fieldset.field {
 .history-empty {
   color: var(--muted);
 }
+
+.shuttle-rain {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  overflow: hidden;
+}
+
+.shuttle-rain__item {
+  position: absolute;
+  top: -2rem;
+  opacity: 0.85;
+  line-height: 1;
+  animation: shuttle-fall linear forwards;
+  will-change: transform;
+}
+
+@keyframes shuttle-fall {
+  to {
+    transform: translateY(110vh) rotate(var(--shuttle-spin, 360deg));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shuttle-rain {
+    display: none;
+  }
+}
