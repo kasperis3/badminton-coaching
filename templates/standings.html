@@ -2,6 +2,10 @@
 {% block title %}Final standings · Baddy Mixer{% endblock %}
 
 {% block content %}
+{% if archive_payload %}
+<script type="application/json" id="archive-session-data">{{ archive_payload | tojson }}</script>
+{% endif %}
+
 <section class="card">
   <h1>Final standings</h1>
   <p class="lead">Session complete. Great coaching!</p>

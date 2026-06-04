@@ -1,11 +1,15 @@
 from mixer_core import (
     ALLOWED_GAME_TO,
+    COMPETITION_DOUBLES,
+    COMPETITION_SINGLES,
     DEFAULT_GAME_TO,
+    RANKED_PAIRING_START_ROUND,
     SchedulingError,
     apply_bye_points,
     apply_round_scores,
     bye_points_for_game_to,
     generate_round,
+    normalize_competition_mode,
     normalize_game_to,
     record_games_played,
     standings_rows,
@@ -26,6 +30,13 @@ def setup_session():
             print("Please enter a number greater than 0.")
         except ValueError:
             print("Invalid input. Please enter a number.")
+
+    while True:
+        mode_raw = input("Competition (doubles/singles) [doubles]: ").strip().lower()
+        competition_mode = normalize_competition_mode(
+            COMPETITION_SINGLES if mode_raw.startswith("s") else COMPETITION_DOUBLES
+        )
+        break
 
     while True:
         raw = input(f"Game to (7/11/15/21) [{DEFAULT_GAME_TO}]: ").strip()
@@ -49,7 +60,7 @@ def setup_session():
         player_list.append(name)
 
     while True:
-        err = validate_session(len(player_list), num_courts)
+        err = validate_session(len(player_list), num_courts, competition_mode)
         if not err:
             break
         print(f"\n  {err}")
@@ -69,6 +80,7 @@ def setup_session():
     return (
         num_courts,
         game_to,
+        competition_mode,
         players_scores,
         games_played,
         sit_out_history,
@@ -79,10 +91,16 @@ def setup_session():
     )
 
 
-def display_round(pairings, players_scores, games_played, game_to, bye_points):
+def display_round(pairings, players_scores, games_played, game_to, bye_points, competition_mode):
     round_num = pairings["round_num"]
+    mode_label = "Singles" if competition_mode == COMPETITION_SINGLES else "Doubles"
+    phase = (
+        "ranked"
+        if pairings.get("use_ranked_pairing")
+        else f"random (rounds 1–{RANKED_PAIRING_START_ROUND - 1})"
+    )
     print(f"\n======================================")
-    print(f"      GENERATING PAIRINGS: ROUND {round_num}")
+    print(f"      GENERATING PAIRINGS: ROUND {round_num} ({mode_label}, {phase})")
     print(f"======================================")
     if round_num > 1:
         for rank, (name, score, games) in enumerate(
@@ -98,9 +116,9 @@ def display_round(pairings, players_scores, games_played, game_to, bye_points):
         )
         court_idx += 1
 
-    if pairings["singles"]:
-        p1, p2 = pairings["singles"]
-        print(f"Court {court_idx} (Singles): {p1} vs {p2}")
+    for match in pairings["singles_matches"]:
+        print(f"Court {court_idx} (Singles): {match[0]} vs {match[1]}")
+        court_idx += 1
 
     if pairings["byes"]:
         names = ", ".join(pairings["byes"])
@@ -129,21 +147,19 @@ def enter_scores(pairings, players_scores, game_to):
         score_b = get_valid_score(f"  Points for ({side_b[0]} & {side_b[1]}): ", game_to)
         doubles_scores.append((score_a, score_b))
 
-    singles_score = None
-    if pairings["singles"]:
-        p1, p2 = pairings["singles"]
-        court_num = len(pairings["doubles"]) + 1
-        print(f"\nCourt {court_num} (Singles):")
+    singles_scores = []
+    for idx, (p1, p2) in enumerate(pairings["singles_matches"], len(pairings["doubles"]) + 1):
+        print(f"\nCourt {idx} (Singles):")
         score_p1 = get_valid_score(f"  Points for {p1}: ", game_to)
         score_p2 = get_valid_score(f"  Points for {p2}: ", game_to)
-        singles_score = (score_p1, score_p2)
+        singles_scores.append((score_p1, score_p2))
 
     apply_round_scores(
         players_scores,
         pairings["doubles"],
-        pairings["singles"],
+        pairings["singles_matches"],
         doubles_scores,
-        singles_score,
+        singles_scores,
     )
 
 
@@ -151,6 +167,7 @@ def main():
     (
         num_courts,
         game_to,
+        competition_mode,
         players_scores,
         games_played,
         sit_out_history,
@@ -173,13 +190,18 @@ def main():
                 matchup_history,
                 singles_matchup_history,
                 round_num,
+                competition_mode,
             )
         except SchedulingError as e:
             print(f"\nScheduling error: {e}")
             break
         apply_bye_points(players_scores, pairings["byes"], bye_points)
-        record_games_played(games_played, pairings["doubles"], pairings["singles"])
-        display_round(pairings, players_scores, games_played, game_to, bye_points)
+        record_games_played(
+            games_played, pairings["doubles"], pairings["singles_matches"]
+        )
+        display_round(
+            pairings, players_scores, games_played, game_to, bye_points, competition_mode
+        )
         enter_scores(pairings, players_scores, game_to)
 
         cont = input("\nGenerate next round? (y/n): ").strip().lower()
