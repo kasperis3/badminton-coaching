@@ -3,6 +3,7 @@ Description=Baddy badminton mixer (Gunicorn)
 After=network.target
 
 [Service]
+# Set User/Group and paths to match SERVER_PATH on the VPS (e.g. /root/badminton-coaching).
 User=deploy
 Group=deploy
 WorkingDirectory=/var/www/baddy

@@ -182,12 +182,34 @@ Logs: `journalctl -u baddy -f` and `/var/log/nginx/error.log`
 
 ### 6. Update after code changes
 
+**Manual** (replace the path with your clone, e.g. `/root/badminton-coaching`):
+
 ```bash
-cd /var/www/baddy
+cd /root/badminton-coaching   # or /var/www/baddy
 git pull
 source venv/bin/activate
 pip install -r requirements.txt
 sudo systemctl restart baddy
+```
+
+**CI deploy (GitHub Actions)** — on every push to `main`, [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) SSHes to the VPS, runs `git pull`, `pip install`, and `systemctl restart baddy`.
+
+Add these repository secrets under **Settings → Secrets and variables → Actions**:
+
+| Secret | Purpose |
+|--------|---------|
+| `SERVER_HOST` | VPS IP or hostname |
+| `SERVER_USER` | SSH user (e.g. `root`) |
+| `SSH_PRIVATE_KEY` | Deploy private key (full PEM) |
+| `SERVER_PATH` | Absolute path to the repo clone (e.g. `/root/badminton-coaching`) — must contain `venv/` |
+
+Use an **absolute** path for `SERVER_PATH` (not `~`). The systemd unit [`deploy/baddy.service`](deploy/baddy.service) must use the same directory for `WorkingDirectory` and `ExecStart` (edit paths before `systemctl enable` if you deploy under home instead of `/var/www/baddy`).
+
+If `SERVER_USER` is not root, allow passwordless restart:
+
+```bash
+# /etc/sudoers.d/baddy-deploy
+deploy ALL=(ALL) NOPASSWD: /bin/systemctl restart baddy
 ```
 
 ## CLI (optional)
