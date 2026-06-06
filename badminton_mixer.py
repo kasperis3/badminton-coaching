@@ -13,7 +13,7 @@ from mixer_core import (
     normalize_game_to,
     record_games_played,
     standings_rows,
-    validate_session,
+    validate_match_score,
 )
 
 
@@ -138,20 +138,37 @@ def get_valid_score(prompt, game_to):
             print("Invalid input. Please enter a whole number.")
 
 
+def get_valid_match_scores(side_a_label, side_b_label, game_to):
+    while True:
+        score_a = get_valid_score(side_a_label, game_to)
+        score_b = get_valid_score(side_b_label, game_to)
+        match_err = validate_match_score(score_a, score_b, game_to)
+        if match_err:
+            print(f"  {match_err} Try again.")
+            continue
+        return score_a, score_b
+
+
 def enter_scores(pairings, players_scores, game_to):
-    print(f"--- Enter final match points (0 to {game_to}) ---")
+    print(f"--- Enter final match points (0 to {game_to}; one side must reach {game_to}) ---")
     doubles_scores = []
     for idx, (side_a, side_b) in enumerate(pairings["doubles"], 1):
         print(f"\nCourt {idx} (Doubles):")
-        score_a = get_valid_score(f"  Points for ({side_a[0]} & {side_a[1]}): ", game_to)
-        score_b = get_valid_score(f"  Points for ({side_b[0]} & {side_b[1]}): ", game_to)
+        score_a, score_b = get_valid_match_scores(
+            f"  Points for ({side_a[0]} & {side_a[1]}): ",
+            f"  Points for ({side_b[0]} & {side_b[1]}): ",
+            game_to,
+        )
         doubles_scores.append((score_a, score_b))
 
     singles_scores = []
     for idx, (p1, p2) in enumerate(pairings["singles_matches"], len(pairings["doubles"]) + 1):
         print(f"\nCourt {idx} (Singles):")
-        score_p1 = get_valid_score(f"  Points for {p1}: ", game_to)
-        score_p2 = get_valid_score(f"  Points for {p2}: ", game_to)
+        score_p1, score_p2 = get_valid_match_scores(
+            f"  Points for {p1}: ",
+            f"  Points for {p2}: ",
+            game_to,
+        )
         singles_scores.append((score_p1, score_p2))
 
     apply_round_scores(

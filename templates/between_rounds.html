@@ -12,13 +12,16 @@
 
 <section class="card">
   <h1>Round {{ round_num }} saved</h1>
-  <p class="lead">Standings after this round (pts and games played). Tap <strong>Next round</strong> to keep going.</p>
+  <p class="lead">Standings after this round (pts and games played). Choose auto pairings or set them manually for the next round.</p>
 
   {% with final=false %}{% include "_standings_list.html" %}{% endwith %}
 
   <div class="action-stack">
     <form method="post" action="{{ url_for('next_round') }}">
-      <button type="submit" class="btn btn-primary btn-block">Next round</button>
+      <button type="submit" class="btn btn-primary btn-block">Next round (auto)</button>
+    </form>
+    <form method="post" action="{{ url_for('next_round_manual') }}">
+      <button type="submit" class="btn btn-secondary btn-block">Set pairings manually</button>
     </form>
     <form method="post" action="{{ url_for('end_session') }}">
       <button type="submit" class="btn btn-secondary btn-block">End session</button>

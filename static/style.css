@@ -443,3 +443,61 @@ fieldset.field {
     display: none;
   }
 }
+
+.text-link {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.pairing-builder-card {
+  margin-bottom: 14px;
+}
+
+.pairing-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.pairing-grid-singles {
+  grid-template-columns: 1fr 1fr;
+}
+
+.player-select,
+.swap-select {
+  width: 100%;
+  min-height: var(--tap);
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 1rem;
+}
+
+.swap-form {
+  margin: 12px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.swap-field {
+  display: block;
+}
+
+.swap-row {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.swap-row .swap-select {
+  flex: 1;
+}
+
+.btn-sm {
+  min-height: var(--tap);
+  padding: 0 14px;
+  white-space: nowrap;
+  font-size: 0.9rem;
+}

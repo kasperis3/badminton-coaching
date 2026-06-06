@@ -78,6 +78,31 @@
       <span class="hint">Default is 7. Sit-out bye is about half + 1 (e.g. 7→4 pts).</span>
     </fieldset>
 
+    <fieldset class="field">
+      <span class="label">Round 1 pairings</span>
+      <div class="radio-row">
+        <label class="radio-option">
+          <input
+            type="radio"
+            name="pairing_preference"
+            value="auto"
+            {% if (pairing_preference | default('auto')) == 'auto' %}checked{% endif %}
+          >
+          <span>Auto</span>
+        </label>
+        <label class="radio-option">
+          <input
+            type="radio"
+            name="pairing_preference"
+            value="manual"
+            {% if pairing_preference == 'manual' %}checked{% endif %}
+          >
+          <span>Manual</span>
+        </label>
+      </div>
+      <span class="hint">Auto generates matchups. Manual lets you assign courts yourself for round 1 (and any later round).</span>
+    </fieldset>
+
     <label class="field">
       <span class="label">Players</span>
       <span class="hint">One name per line (at least 2). Even or odd counts OK.</span>

@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% block title %}Set pairings · Round {{ round_num }} · Baddy Mixer{% endblock %}
+
+{% block header_extra %}
+<span class="pill">Round {{ round_num }}</span>
+{% endblock %}
+
+{% block content %}
+<section class="card">
+  <h1>Set pairings — round {{ round_num }}</h1>
+  <p class="lead">
+    Assign each court for
+    {% if competition_mode == 'singles' %}singles{% else %}doubles{% endif %}
+    mode, or switch back to auto pairings below.
+  </p>
+
+  {% if errors %}
+  <ul class="alert alert-error">
+    {% for error in errors %}
+    <li>{{ error }}</li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+
+  <form method="post" action="{{ url_for('submit_manual_pairings') }}" class="form" id="manual-pairings-form">
+    {% set court_num = namespace(value=0) %}
+    {% for slot in court_plan.courts %}
+    {% set court_num.value = court_num.value + 1 %}
+    <article class="match-card pairing-builder-card">
+      {% if slot.type == 'doubles' %}
+      {% set d = draft.doubles[slot.index] if draft.doubles and draft.doubles|length > slot.index else {} %}
+      <h2 class="match-title">Court {{ court_num.value }} (Doubles)</h2>
+      <div class="pairing-grid">
+        <label class="field">
+          <span class="label">Team A — player 1</span>
+          <select name="doubles_{{ slot.index }}_a1" class="player-select" required>
+            <option value="">Choose…</option>
+            {% for name in players %}
+            <option value="{{ name }}" {% if d.a1 == name %}selected{% endif %}>{{ name }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label class="field">
+          <span class="label">Team A — player 2</span>
+          <select name="doubles_{{ slot.index }}_a2" class="player-select" required>
+            <option value="">Choose…</option>
+            {% for name in players %}
+            <option value="{{ name }}" {% if d.a2 == name %}selected{% endif %}>{{ name }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label class="field">
+          <span class="label">Team B — player 1</span>
+          <select name="doubles_{{ slot.index }}_b1" class="player-select" required>
+            <option value="">Choose…</option>
+            {% for name in players %}
+            <option value="{{ name }}" {% if d.b1 == name %}selected{% endif %}>{{ name }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label class="field">
+          <span class="label">Team B — player 2</span>
+          <select name="doubles_{{ slot.index }}_b2" class="player-select" required>
+            <option value="">Choose…</option>
+            {% for name in players %}
+            <option value="{{ name }}" {% if d.b2 == name %}selected{% endif %}>{{ name }}</option>
+            {% endfor %}
+          </select>
+        </label>
+      </div>
+      {% else %}
+      {% set s = draft.singles[slot.index] if draft.singles and draft.singles|length > slot.index else {} %}
+      <h2 class="match-title">Court {{ court_num.value }} (Singles)</h2>
+      <div class="pairing-grid pairing-grid-singles">
+        <label class="field">
+          <span class="label">Player 1</span>
+          <select name="singles_{{ slot.index }}_p1" class="player-select" required>
+            <option value="">Choose…</option>
+            {% for name in players %}
+            <option value="{{ name }}" {% if s.p1 == name %}selected{% endif %}>{{ name }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label class="field">
+          <span class="label">Player 2</span>
+          <select name="singles_{{ slot.index }}_p2" class="player-select" required>
+            <option value="">Choose…</option>
+            {% for name in players %}
+            <option value="{{ name }}" {% if s.p2 == name %}selected{% endif %}>{{ name }}</option>
+            {% endfor %}
+          </select>
+        </label>
+      </div>
+      {% endif %}
+    </article>
+    {% endfor %}
+
+    {% if court_plan.sit_out_count == 1 %}
+    <fieldset class="field">
+      <span class="label">Sitting out</span>
+      <select name="sit_out" class="player-select" required>
+        <option value="">Choose…</option>
+        {% for name in players %}
+        <option value="{{ name }}" {% if draft.sit_out == name %}selected{% endif %}>{{ name }}</option>
+        {% endfor %}
+      </select>
+      <span class="hint">One player sits out this round and receives bye points.</span>
+    </fieldset>
+    {% endif %}
+
+    <button type="submit" class="btn btn-primary btn-block">Start this round</button>
+  </form>
+</section>
+
+<section class="card card-actions">
+  <form method="post" action="{{ url_for('auto_pairings_for_round') }}">
+    <button type="submit" class="btn btn-secondary btn-block">Use auto pairings instead</button>
+  </form>
+  <a href="{{ url_for('index') }}" class="btn btn-ghost btn-block">Cancel session</a>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='manual_pairings.js') }}" defer></script>
+{% endblock %}

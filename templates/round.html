@@ -26,10 +26,12 @@
 </section>
 {% endif %}
 
+{% if not pairings.get('manual_pairings') %}
 {% if pairings.use_ranked_pairing %}
 <p class="phase-hint phase-hint-ranked">Ranked round — players grouped by similar scores.</p>
 {% else %}
 <p class="phase-hint">Exploratory round — pairings randomized for variety.</p>
+{% endif %}
 {% endif %}
 
 {% if errors %}
@@ -45,94 +47,146 @@
   <p class="hint competition-label">
     {% if competition_mode == 'singles' %}Singles competition{% else %}Doubles competition{% endif %}
   </p>
+  <p class="hint">
+    <a href="{{ url_for('edit_pairings') }}" class="text-link">Edit pairings</a>
+    before saving scores. One side must reach {{ game_to }}; both cannot be {{ game_to }}.
+  </p>
 
-  <form method="post" action="{{ url_for('submit_scores') }}" class="form">
-    {% for match in pairings.doubles %}
-    {% set i = loop.index0 %}
-    <article class="match-card">
-      <h2 class="match-title">Court {{ loop.index }} (Doubles)</h2>
-      <div class="versus">
-        <span class="player-name">{{ match[0][0] }} &amp; {{ match[0][1] }}</span>
-        <span class="vs">vs</span>
-        <span class="player-name">{{ match[1][0] }} &amp; {{ match[1][1] }}</span>
-      </div>
-      <div class="score-row">
-        <label class="score-field">
-          <span>{{ match[0][0] }} &amp; {{ match[0][1] }}</span>
-          <input
-            type="number"
-            name="doubles_{{ i }}_a"
-            min="0"
-            max="{{ game_to }}"
-            inputmode="numeric"
-            required
-            placeholder="0–{{ game_to }}"
-          >
-        </label>
-        <label class="score-field">
-          <span>{{ match[1][0] }} &amp; {{ match[1][1] }}</span>
-          <input
-            type="number"
-            name="doubles_{{ i }}_b"
-            min="0"
-            max="{{ game_to }}"
-            inputmode="numeric"
-            required
-            placeholder="0–{{ game_to }}"
-          >
-        </label>
-      </div>
-    </article>
-    {% endfor %}
+  <form method="post" action="{{ url_for('submit_scores') }}" class="form" id="scores-form"></form>
 
-    {% for match in pairings.singles_matches %}
-    {% set i = loop.index0 %}
-    {% set court_num = pairings.doubles|length + loop.index %}
-    <article class="match-card">
-      <h2 class="match-title">Court {{ court_num }} (Singles)</h2>
-      <div class="versus">
-        <span class="player-name">{{ match[0] }}</span>
-        <span class="vs">vs</span>
-        <span class="player-name">{{ match[1] }}</span>
-      </div>
-      <div class="score-row">
-        <label class="score-field">
-          <span>{{ match[0] }}</span>
-          <input
-            type="number"
-            name="singles_{{ i }}_p1"
-            min="0"
-            max="{{ game_to }}"
-            inputmode="numeric"
-            required
-            placeholder="0–{{ game_to }}"
-          >
-        </label>
-        <label class="score-field">
-          <span>{{ match[1] }}</span>
-          <input
-            type="number"
-            name="singles_{{ i }}_p2"
-            min="0"
-            max="{{ game_to }}"
-            inputmode="numeric"
-            required
-            placeholder="0–{{ game_to }}"
-          >
-        </label>
-      </div>
-    </article>
-    {% endfor %}
+  {% for match in pairings.doubles %}
+  {% set i = loop.index0 %}
+  <article class="match-card">
+    <h2 class="match-title">Court {{ loop.index }} (Doubles)</h2>
+    <div class="versus">
+      <span class="player-name">{{ match[0][0] }} &amp; {{ match[0][1] }}</span>
+      <span class="vs">vs</span>
+      <span class="player-name">{{ match[1][0] }} &amp; {{ match[1][1] }}</span>
+    </div>
+    {% if pairings.byes|length == 1 %}
+    <form method="post" action="{{ url_for('swap_sit_out') }}" class="swap-form">
+      <input type="hidden" name="match_kind" value="doubles">
+      <input type="hidden" name="match_index" value="{{ i }}">
+      <label class="swap-field">
+        <span class="label">Swap with sit-out ({{ pairings.byes[0] }})</span>
+        <div class="swap-row">
+          <select name="player_out" class="swap-select" required>
+            <option value="">Choose player…</option>
+            <option value="{{ match[0][0] }}">{{ match[0][0] }}</option>
+            <option value="{{ match[0][1] }}">{{ match[0][1] }}</option>
+            <option value="{{ match[1][0] }}">{{ match[1][0] }}</option>
+            <option value="{{ match[1][1] }}">{{ match[1][1] }}</option>
+          </select>
+          <button type="submit" class="btn btn-secondary btn-sm">Swap</button>
+        </div>
+      </label>
+    </form>
+    {% endif %}
+    <div class="score-row">
+      <label class="score-field">
+        <span>{{ match[0][0] }} &amp; {{ match[0][1] }}</span>
+        <input
+          type="text"
+          class="score-input"
+          name="doubles_{{ i }}_a"
+          form="scores-form"
+          inputmode="numeric"
+          pattern="[0-9]*"
+          autocomplete="off"
+          maxlength="2"
+          required
+          placeholder="0–{{ game_to }}"
+        >
+      </label>
+      <label class="score-field">
+        <span>{{ match[1][0] }} &amp; {{ match[1][1] }}</span>
+        <input
+          type="text"
+          class="score-input"
+          name="doubles_{{ i }}_b"
+          form="scores-form"
+          inputmode="numeric"
+          pattern="[0-9]*"
+          autocomplete="off"
+          maxlength="2"
+          required
+          placeholder="0–{{ game_to }}"
+        >
+      </label>
+    </div>
+  </article>
+  {% endfor %}
 
-    <button type="submit" class="btn btn-primary btn-block">Save scores</button>
-  </form>
+  {% for match in pairings.singles_matches %}
+  {% set i = loop.index0 %}
+  {% set court_num = pairings.doubles|length + loop.index %}
+  <article class="match-card">
+    <h2 class="match-title">Court {{ court_num }} (Singles)</h2>
+    <div class="versus">
+      <span class="player-name">{{ match[0] }}</span>
+      <span class="vs">vs</span>
+      <span class="player-name">{{ match[1] }}</span>
+    </div>
+    {% if pairings.byes|length == 1 %}
+    <form method="post" action="{{ url_for('swap_sit_out') }}" class="swap-form">
+      <input type="hidden" name="match_kind" value="singles">
+      <input type="hidden" name="match_index" value="{{ i }}">
+      <label class="swap-field">
+        <span class="label">Swap with sit-out ({{ pairings.byes[0] }})</span>
+        <div class="swap-row">
+          <select name="player_out" class="swap-select" required>
+            <option value="">Choose player…</option>
+            <option value="{{ match[0] }}">{{ match[0] }}</option>
+            <option value="{{ match[1] }}">{{ match[1] }}</option>
+          </select>
+          <button type="submit" class="btn btn-secondary btn-sm">Swap</button>
+        </div>
+      </label>
+    </form>
+    {% endif %}
+    <div class="score-row">
+      <label class="score-field">
+        <span>{{ match[0] }}</span>
+        <input
+          type="text"
+          class="score-input"
+          name="singles_{{ i }}_p1"
+          form="scores-form"
+          inputmode="numeric"
+          pattern="[0-9]*"
+          autocomplete="off"
+          maxlength="2"
+          required
+          placeholder="0–{{ game_to }}"
+        >
+      </label>
+      <label class="score-field">
+        <span>{{ match[1] }}</span>
+        <input
+          type="text"
+          class="score-input"
+          name="singles_{{ i }}_p2"
+          form="scores-form"
+          inputmode="numeric"
+          pattern="[0-9]*"
+          autocomplete="off"
+          maxlength="2"
+          required
+          placeholder="0–{{ game_to }}"
+        >
+      </label>
+    </div>
+  </article>
+  {% endfor %}
+
+  <button type="submit" form="scores-form" class="btn btn-primary btn-block">Save scores</button>
 </section>
 
 {% if pairings.byes %}
 <section class="card card-bye">
   <h2 class="section-title">Sitting out</h2>
   <p class="bye-names">{{ pairings.byes | join(', ') }}</p>
-  <p class="hint">+{{ bye_points }} points each (already added)</p>
+  <p class="hint">+{{ bye_points }} points when scores are saved (whoever sits out at that point)</p>
 </section>
 {% endif %}
 
@@ -142,4 +196,8 @@
   </form>
   <a href="{{ url_for('index') }}" class="btn btn-ghost btn-block">Start over</a>
 </section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='score_inputs.js') }}" defer></script>
 {% endblock %}

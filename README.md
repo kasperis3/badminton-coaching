@@ -192,7 +192,7 @@ pip install -r requirements.txt
 sudo systemctl restart baddy
 ```
 
-**CI deploy (GitHub Actions)** — on every push to `main`, [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) SSHes to the VPS, runs `git pull`, `pip install`, and `systemctl restart baddy`.
+**CI deploy (GitHub Actions)** — [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) runs the full test suite on every push and PR; **deploy to the VPS only runs on push to `main` after tests pass**.
 
 Add these repository secrets under **Settings → Secrets and variables → Actions**:
 
@@ -211,6 +211,19 @@ If `SERVER_USER` is not root, allow passwordless restart:
 # /etc/sudoers.d/baddy-deploy
 deploy ALL=(ALL) NOPASSWD: /bin/systemctl restart baddy
 ```
+
+## Testing
+
+Install dev dependencies and run tests:
+
+```bash
+pip install -r requirements-dev.txt
+pytest                  # full suite
+pytest -m smoke         # fast sanity check
+pytest -m regression    # manual pairings, swap, score rules
+```
+
+GitHub Actions runs smoke tests then the full suite on every push and pull request. Deploy to the VPS is blocked if tests fail.
 
 ## CLI (optional)
 
@@ -249,3 +262,12 @@ At setup, choose **Doubles** (default) or **Singles**:
 - History and resume are **per browser/device only** — not synced across phones or coaches.
 
 Server-side Flask sessions still expire after about **7 days**; localStorage is independent and survives until you clear site data.
+
+### Manual pairings and sit-out swap (web)
+
+- **Round 1** — at setup, choose **Auto** or **Manual** pairings. Manual opens a court builder where you assign every player once.
+- **Later rounds** — after each round, **Next round (auto)** or **Set pairings manually**.
+- **Edit pairings** — on the round page before scores are saved, change assignments for the current round.
+- **Swap with sit-out** — when one player sits out, each court has a **Swap** control to exchange one player on that court with the sit-out (bye points and games played update automatically).
+
+Matchup history is recorded when scores are saved, so swaps and manual edits are reflected in what actually gets played.

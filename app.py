@@ -6,15 +6,26 @@ from flask import Flask, redirect, render_template, request, session, url_for
 
 from mixer_core import (
     COMPETITION_DOUBLES,
+    PAIRING_MANUAL,
     SchedulingError,
     apply_bye_points,
     apply_round_scores,
+    apply_sit_out_swap,
+    build_court_plan,
     bye_points_for_game_to,
+    commit_manual_round_start,
     generate_round,
     normalize_competition_mode,
     normalize_game_to,
+    pairings_session_dict,
+    pairings_to_draft,
+    parse_manual_pairings,
+    parse_score_value,
     record_games_played,
+    record_round_history,
+    reverse_round_start_effects,
     standings_rows,
+    validate_match_score,
     validate_session,
 )
 
@@ -40,6 +51,10 @@ def session_scoring():
     return game_to, bye_points_for_game_to(game_to)
 
 
+def player_names():
+    return list(session["players_scores"].keys())
+
+
 def build_session_snapshot():
     if "players_scores" not in session:
         return None
@@ -47,6 +62,7 @@ def build_session_snapshot():
         "num_courts": session.get("num_courts"),
         "game_to": session.get("game_to"),
         "competition_mode": session.get("competition_mode", COMPETITION_DOUBLES),
+        "pairing_preference": session.get("pairing_preference"),
         "players_scores": session.get("players_scores"),
         "games_played": session.get("games_played"),
         "sit_out_history": session.get("sit_out_history"),
@@ -64,6 +80,7 @@ def restore_session_from_payload(data):
     session["num_courts"] = int(data["num_courts"])
     session["game_to"] = normalize_game_to(data.get("game_to"))
     session["competition_mode"] = normalize_competition_mode(data.get("competition_mode"))
+    session["pairing_preference"] = data.get("pairing_preference")
     session["players_scores"] = data["players_scores"]
     session["games_played"] = data["games_played"]
     session["sit_out_history"] = data["sit_out_history"]
@@ -76,6 +93,36 @@ def restore_session_from_payload(data):
         session["current_pairings"] = data["current_pairings"]
     else:
         session.pop("current_pairings", None)
+
+
+def finalize_auto_pairings(pairings):
+    record_games_played(
+        session["games_played"],
+        pairings["doubles"],
+        pairings["singles_matches"],
+    )
+    session["current_pairings"] = pairings_session_dict(
+        pairings, session["players_scores"], session["games_played"]
+    )
+    session.modified = True
+
+
+def manual_pairings_context(errors=None):
+    competition_mode = session.get("competition_mode", COMPETITION_DOUBLES)
+    names = player_names()
+    court_plan = build_court_plan(
+        competition_mode, len(names), session["num_courts"]
+    )
+    draft = session.get("pairings_draft") or {"doubles": [], "singles": [], "sit_out": ""}
+    return {
+        "round_num": session.get("round_num", 1),
+        "competition_mode": competition_mode,
+        "num_courts": session["num_courts"],
+        "players": names,
+        "court_plan": court_plan,
+        "draft": draft,
+        "errors": errors or [],
+    }
 
 
 @app.route("/")
@@ -93,6 +140,7 @@ def start_session():
 
     game_to = normalize_game_to(request.form.get("game_to"))
     competition_mode = normalize_competition_mode(request.form.get("competition_mode"))
+    pairing_preference = request.form.get("pairing_preference", "auto")
     players = parse_players(request.form.get("players", ""))
 
     errors = []
@@ -112,6 +160,7 @@ def start_session():
             num_courts=num_courts or "",
             game_to=game_to,
             competition_mode=competition_mode,
+            pairing_preference=pairing_preference,
             players=request.form.get("players", ""),
         )
 
@@ -119,6 +168,7 @@ def start_session():
     session["num_courts"] = num_courts
     session["game_to"] = game_to
     session["competition_mode"] = competition_mode
+    session["pairing_preference"] = pairing_preference
     session["players_scores"] = {name: 0 for name in players}
     session["games_played"] = {name: 0 for name in players}
     session["sit_out_history"] = {name: 0 for name in players}
@@ -127,7 +177,10 @@ def start_session():
     session["matchup_history"] = {}
     session["singles_matchup_history"] = {}
     session["round_num"] = 1
+    session.pop("pairings_draft", None)
 
+    if pairing_preference == PAIRING_MANUAL:
+        return redirect(url_for("manual_pairings_view"))
     return redirect(url_for("round_view"))
 
 
@@ -143,7 +196,130 @@ def restore_session():
     redirect_to = url_for("round_view")
     if data.get("current_pairings"):
         redirect_to = url_for("round_view")
+    elif session.get("pairing_preference") == PAIRING_MANUAL and not data.get("round_num"):
+        redirect_to = url_for("manual_pairings_view")
     return {"ok": True, "redirect": redirect_to}
+
+
+@app.route("/round/pairings", methods=["GET"])
+def manual_pairings_view():
+    if "players_scores" not in session:
+        return redirect(url_for("index"))
+    if "current_pairings" in session:
+        return redirect(url_for("round_view"))
+    return render_template("manual_pairings.html", **manual_pairings_context())
+
+
+@app.route("/round/pairings", methods=["POST"])
+def submit_manual_pairings():
+    if "players_scores" not in session:
+        return redirect(url_for("index"))
+    if "current_pairings" in session:
+        return redirect(url_for("round_view"))
+
+    competition_mode = session.get("competition_mode", COMPETITION_DOUBLES)
+    names = player_names()
+    court_plan = build_court_plan(
+        competition_mode, len(names), session["num_courts"]
+    )
+    game_to, bye_points = session_scoring()
+
+    try:
+        pairings = parse_manual_pairings(
+            request.form,
+            court_plan,
+            names,
+            session["round_num"],
+            session["players_scores"],
+        )
+    except SchedulingError as e:
+        draft = {"sit_out": request.form.get("sit_out", "")}
+        draft["doubles"] = []
+        draft["singles"] = []
+        for i in range(court_plan["doubles_count"]):
+            draft["doubles"].append(
+                {
+                    "a1": request.form.get(f"doubles_{i}_a1", ""),
+                    "a2": request.form.get(f"doubles_{i}_a2", ""),
+                    "b1": request.form.get(f"doubles_{i}_b1", ""),
+                    "b2": request.form.get(f"doubles_{i}_b2", ""),
+                }
+            )
+        for i in range(court_plan["singles_count"]):
+            draft["singles"].append(
+                {
+                    "p1": request.form.get(f"singles_{i}_p1", ""),
+                    "p2": request.form.get(f"singles_{i}_p2", ""),
+                }
+            )
+        session["pairings_draft"] = draft
+        ctx = manual_pairings_context(errors=[str(e)])
+        return render_template("manual_pairings.html", **ctx)
+
+    commit_manual_round_start(
+        pairings,
+        session["players_scores"],
+        session["games_played"],
+        session["sit_out_history"],
+        bye_points,
+    )
+    session["current_pairings"] = pairings_session_dict(
+        pairings, session["players_scores"], session["games_played"], manual_pairings=True
+    )
+    session.modified = True
+    return redirect(url_for("round_view"))
+
+
+@app.route("/round/pairings/auto", methods=["POST"])
+def auto_pairings_for_round():
+    if "players_scores" not in session:
+        return redirect(url_for("index"))
+    if "current_pairings" in session:
+        return redirect(url_for("round_view"))
+
+    competition_mode = session.get("competition_mode", COMPETITION_DOUBLES)
+    try:
+        pairings = generate_round(
+            session["num_courts"],
+            session["players_scores"],
+            session["sit_out_history"],
+            session["singles_history"],
+            session["partner_history"],
+            session["matchup_history"],
+            session["singles_matchup_history"],
+            session["round_num"],
+            competition_mode,
+        )
+    except SchedulingError as e:
+        return render_template(
+            "manual_pairings.html",
+            **manual_pairings_context(errors=[str(e)]),
+        )
+
+    finalize_auto_pairings(pairings)
+    session.pop("pairings_draft", None)
+    session.modified = True
+    return redirect(url_for("round_view"))
+
+
+@app.route("/round/edit-pairings")
+def edit_pairings():
+    if "current_pairings" not in session:
+        return redirect(url_for("index"))
+
+    game_to, bye_points = session_scoring()
+    pairings = session["current_pairings"]
+    reverse_round_start_effects(
+        pairings,
+        session["players_scores"],
+        session["games_played"],
+        session["sit_out_history"],
+        bye_points,
+    )
+    session["pairings_draft"] = pairings_to_draft(pairings)
+    session.pop("current_pairings", None)
+    session.modified = True
+    return redirect(url_for("manual_pairings_view"))
 
 
 @app.route("/round")
@@ -176,24 +352,7 @@ def round_view():
                 competition_mode=competition_mode,
                 players="\n".join(session["players_scores"].keys()),
             )
-        apply_bye_points(session["players_scores"], pairings["byes"], bye_points)
-        record_games_played(
-            session["games_played"],
-            pairings["doubles"],
-            pairings["singles_matches"],
-        )
-        session["current_pairings"] = {
-            "doubles": pairings["doubles"],
-            "singles_matches": pairings["singles_matches"],
-            "byes": pairings["byes"],
-            "round_num": pairings["round_num"],
-            "rankings": pairings["rankings"],
-            "use_ranked_pairing": pairings.get("use_ranked_pairing", False),
-            "standings": standings_rows(
-                session["players_scores"], session["games_played"]
-            ),
-        }
-        session.modified = True
+        finalize_auto_pairings(pairings)
 
     snapshot = build_session_snapshot()
     return render_template(
@@ -204,6 +363,52 @@ def round_view():
         competition_mode=competition_mode,
         session_snapshot=snapshot,
     )
+
+
+@app.route("/round/swap", methods=["POST"])
+def swap_sit_out():
+    if "current_pairings" not in session:
+        return redirect(url_for("index"))
+
+    game_to, bye_points = session_scoring()
+    competition_mode = session.get("competition_mode", COMPETITION_DOUBLES)
+    pairings = session["current_pairings"]
+    match_kind = request.form.get("match_kind", "")
+    try:
+        match_index = int(request.form.get("match_index", -1))
+    except ValueError:
+        match_index = -1
+    player_out = (request.form.get("player_out") or "").strip()
+
+    try:
+        updated = apply_sit_out_swap(
+            pairings,
+            match_kind,
+            match_index,
+            player_out,
+            session["players_scores"],
+            session["games_played"],
+            session["sit_out_history"],
+            bye_points,
+        )
+        updated["standings"] = standings_rows(
+            session["players_scores"], session["games_played"]
+        )
+        session["current_pairings"] = updated
+        session.modified = True
+    except SchedulingError as e:
+        snapshot = build_session_snapshot()
+        return render_template(
+            "round.html",
+            pairings=pairings,
+            errors=[str(e)],
+            game_to=game_to,
+            bye_points=bye_points,
+            competition_mode=competition_mode,
+            session_snapshot=snapshot,
+        )
+
+    return redirect(url_for("round_view"))
 
 
 @app.route("/round/scores", methods=["POST"])
@@ -218,33 +423,47 @@ def submit_scores():
     singles_scores = []
     errors = []
 
-    def parse_score(raw, label):
-        try:
-            score = int(raw.strip())
-        except ValueError:
-            errors.append(f"{label}: enter a whole number.")
+    def parse_match_scores(raw_a, raw_b, label):
+        score_a = parse_score_value(raw_a)
+        score_b = parse_score_value(raw_b)
+        if score_a is None:
+            errors.append(f"{label}: enter a whole number for the first score.")
+        elif not 0 <= score_a <= game_to:
+            errors.append(f"{label}: first score must be between 0 and {game_to}.")
+        if score_b is None:
+            errors.append(f"{label}: enter a whole number for the second score.")
+        elif not 0 <= score_b <= game_to:
+            errors.append(f"{label}: second score must be between 0 and {game_to}.")
+        if score_a is None or score_b is None:
             return None
-        if not 0 <= score <= game_to:
-            errors.append(f"{label}: score must be between 0 and {game_to}.")
+        if not (0 <= score_a <= game_to and 0 <= score_b <= game_to):
             return None
-        return score
+        match_err = validate_match_score(score_a, score_b, game_to)
+        if match_err:
+            errors.append(f"{label}: {match_err}")
+            return None
+        return score_a, score_b
 
     for i, match in enumerate(pairings["doubles"]):
         court = i + 1
-        score_a = parse_score(request.form.get(f"doubles_{i}_a", ""), f"Court {court} team A")
-        score_b = parse_score(request.form.get(f"doubles_{i}_b", ""), f"Court {court} team B")
-        if score_a is None or score_b is None:
-            continue
-        doubles_scores.append((score_a, score_b))
+        parsed = parse_match_scores(
+            request.form.get(f"doubles_{i}_a", ""),
+            request.form.get(f"doubles_{i}_b", ""),
+            f"Court {court}",
+        )
+        if parsed:
+            doubles_scores.append(parsed)
 
     for i, match in enumerate(pairings.get("singles_matches", [])):
         court = len(pairings["doubles"]) + i + 1
         p1, p2 = match
-        score_p1 = parse_score(request.form.get(f"singles_{i}_p1", ""), f"Court {court} {p1}")
-        score_p2 = parse_score(request.form.get(f"singles_{i}_p2", ""), f"Court {court} {p2}")
-        if score_p1 is None or score_p2 is None:
-            continue
-        singles_scores.append((score_p1, score_p2))
+        parsed = parse_match_scores(
+            request.form.get(f"singles_{i}_p1", ""),
+            request.form.get(f"singles_{i}_p2", ""),
+            f"Court {court} ({p1} vs {p2})",
+        )
+        if parsed:
+            singles_scores.append(parsed)
 
     expected_doubles = len(pairings["doubles"])
     expected_singles = len(pairings.get("singles_matches", []))
@@ -264,6 +483,14 @@ def submit_scores():
             session_snapshot=snapshot,
         )
 
+    record_round_history(
+        pairings,
+        session["singles_history"],
+        session["partner_history"],
+        session["matchup_history"],
+        session["singles_matchup_history"],
+    )
+    apply_bye_points(session["players_scores"], pairings.get("byes", []), bye_points)
     apply_round_scores(
         session["players_scores"],
         pairings["doubles"],
@@ -288,8 +515,20 @@ def next_round():
     if "players_scores" not in session:
         return redirect(url_for("index"))
     session["round_num"] = session.get("round_num", 1) + 1
+    session.pop("pairings_draft", None)
     session.modified = True
     return redirect(url_for("round_view"))
+
+
+@app.route("/round/next/manual", methods=["POST"])
+def next_round_manual():
+    if "players_scores" not in session:
+        return redirect(url_for("index"))
+    session["round_num"] = session.get("round_num", 1) + 1
+    session.pop("pairings_draft", None)
+    session.pop("current_pairings", None)
+    session.modified = True
+    return redirect(url_for("manual_pairings_view"))
 
 
 @app.route("/session/end", methods=["POST"])
