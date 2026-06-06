@@ -30,6 +30,8 @@ Config templates live in [`deploy/`](deploy/):
 - [`deploy/baddy.service`](deploy/baddy.service) — systemd unit
 - [`deploy/nginx-baddy.conf`](deploy/nginx-baddy.conf) — Nginx on port 80 (only if nothing else uses it)
 - [`deploy/nginx-baddy-port.conf`](deploy/nginx-baddy-port.conf) — Nginx on port 8080 (alongside another app on 80)
+- [`deploy/nginx-baddy-nextcaltrain.conf`](deploy/nginx-baddy-nextcaltrain.conf) — **baddy.nextcaltrain.live** on same droplet as nextcaltrain.live
+- [`deploy/baddy.nextcaltrain.live.md`](deploy/baddy.nextcaltrain.live.md) — step-by-step DNS + Nginx + HTTPS for that subdomain
 - [`deploy/.env.example`](deploy/.env.example) — `SECRET_KEY` reminder
 
 ### 1. VPS initial setup (Ubuntu)
@@ -121,6 +123,9 @@ Install code under `/var/www/baddy`, venv, `pip install -r requirements.txt`, en
 
 **Option A — Subdomain (best if you have a domain)**  
 e.g. `baddy.yourdomain.com` → Gunicorn, while `yourdomain.com` stays your current app.
+
+**Production setup for this project:** [`deploy/baddy.nextcaltrain.live.md`](deploy/baddy.nextcaltrain.live.md)  
+(DNS `baddy` → droplet IP, Nginx config [`deploy/nginx-baddy-nextcaltrain.conf`](deploy/nginx-baddy-nextcaltrain.conf), Certbot for HTTPS.)
 
 ```nginx
 # /etc/nginx/sites-available/baddy
