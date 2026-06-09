@@ -52,7 +52,13 @@
     before saving scores. One side must reach {{ game_to }}; both cannot be {{ game_to }}.
   </p>
 
-  <form method="post" action="{{ url_for('submit_scores') }}" class="form" id="scores-form"></form>
+  <form
+    method="post"
+    action="{{ url_for('submit_scores') }}"
+    class="form"
+    id="scores-form"
+    data-game-to="{{ game_to }}"
+  ></form>
 
   {% for match in pairings.doubles %}
   {% set i = loop.index0 %}
@@ -96,6 +102,7 @@
           maxlength="2"
           required
           placeholder="0–{{ game_to }}"
+          value="{{ (submitted_scores|default({})).get('doubles_' ~ i ~ '_a', '') }}"
         >
       </label>
       <label class="score-field">
@@ -111,9 +118,11 @@
           maxlength="2"
           required
           placeholder="0–{{ game_to }}"
+          value="{{ (submitted_scores|default({})).get('doubles_' ~ i ~ '_b', '') }}"
         >
       </label>
     </div>
+    <p class="score-match-hint" aria-live="polite"></p>
   </article>
   {% endfor %}
 
@@ -158,6 +167,7 @@
           maxlength="2"
           required
           placeholder="0–{{ game_to }}"
+          value="{{ (submitted_scores|default({})).get('singles_' ~ i ~ '_p1', '') }}"
         >
       </label>
       <label class="score-field">
@@ -173,13 +183,15 @@
           maxlength="2"
           required
           placeholder="0–{{ game_to }}"
+          value="{{ (submitted_scores|default({})).get('singles_' ~ i ~ '_p2', '') }}"
         >
       </label>
     </div>
+    <p class="score-match-hint" aria-live="polite"></p>
   </article>
   {% endfor %}
 
-  <button type="submit" form="scores-form" class="btn btn-primary btn-block">Save scores</button>
+  <button type="submit" form="scores-form" id="save-scores-btn" class="btn btn-primary btn-block" disabled>Save scores</button>
 </section>
 
 {% if pairings.byes %}

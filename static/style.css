@@ -276,6 +276,22 @@ textarea:focus {
   text-align: center;
 }
 
+.score-match-hint {
+  margin: 8px 0 0;
+  font-size: 0.8rem;
+  color: #ffc9c9;
+  min-height: 1.2em;
+}
+
+.score-match-invalid .score-input {
+  border-color: rgba(255, 107, 107, 0.55);
+}
+
+.btn-primary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .standings-list {
   margin: 0 0 20px;
   padding: 0;

@@ -481,6 +481,7 @@ def submit_scores():
             bye_points=bye_points,
             competition_mode=competition_mode,
             session_snapshot=snapshot,
+            submitted_scores=dict(request.form),
         )
 
     record_round_history(

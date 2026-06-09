@@ -19,6 +19,23 @@ def test_invalid_scores_rerender_round_with_error(client, four_players):
     assert b"Round 1 matchups" in response.data
 
 
+def test_invalid_scores_repopulate_inputs(client, four_players):
+    response = start_session(client, four_players, num_courts=1)
+    follow(client, response)
+
+    response = client.post(
+        "/round/scores",
+        data=score_form(doubles=[(7, 7)]),
+        follow_redirects=True,
+    )
+    assert response.status_code == 200
+    html = response.data.decode()
+    assert 'name="doubles_0_a"' in html
+    assert 'name="doubles_0_b"' in html
+    assert 'name="doubles_0_a"' in html and 'value="7"' in html
+    assert html.count('value="7"') >= 2
+
+
 def manual_pairings_form_seven_singles():
     return {
         "sit_out": "P7",
