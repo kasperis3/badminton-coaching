@@ -138,10 +138,13 @@ def assign_round_sitter(ranked_names, sitting_out, sit_out_history, players_scor
 
 def best_singles_pair(pool, singles_history, singles_matchup_history, players_scores, use_ranked):
     under_cap = [p for p in pool if singles_history.get(p, 0) < MAX_SINGLES_GAMES]
+    candidates = under_cap if len(under_cap) >= 2 else pool
+    if len(candidates) < 2:
+        return None
     best = None
     best_sort = None
-    for i, p1 in enumerate(under_cap):
-        for p2 in under_cap[i + 1 :]:
+    for i, p1 in enumerate(candidates):
+        for p2 in candidates[i + 1 :]:
             key = singles_key(p1, p2)
             if use_ranked:
                 sort_key = (

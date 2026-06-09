@@ -3,10 +3,13 @@ import random
 import pytest
 
 from mixer_core import (
+    MAX_SINGLES_GAMES,
     SchedulingError,
+    best_singles_pair,
     build_court_plan,
     generate_round,
     record_games_played,
+    record_round_history,
     validate_session,
 )
 
@@ -65,3 +68,35 @@ def test_record_games_played_rejects_duplicate():
             [(("A", "B"), ("C", "A"))],
             [],
         )
+
+
+def test_best_singles_pair_falls_back_when_all_at_cap():
+    pool = ["P1", "P2", "P3", "P4"]
+    singles_history = {p: MAX_SINGLES_GAMES for p in pool}
+    pair = best_singles_pair(pool, singles_history, {}, {p: 0 for p in pool}, False)
+    assert pair is not None
+    assert set(pair) <= set(pool)
+
+
+def test_generate_round_singles_multi_round_no_error():
+    players = [f"P{i}" for i in range(7)]
+    ps = {p: 0 for p in players}
+    sit_out = {p: 0 for p in players}
+    singles_hist = {p: 0 for p in players}
+    singles_matchup = {}
+
+    for round_num in range(1, 5):
+        pairings = generate_round(
+            4,
+            ps,
+            sit_out,
+            singles_hist,
+            {},
+            {},
+            singles_matchup,
+            round_num,
+            "singles",
+        )
+        assert len(pairings["singles_matches"]) == 3
+        assert len(pairings["byes"]) == 1
+        record_round_history(pairings, singles_hist, {}, {}, singles_matchup)
