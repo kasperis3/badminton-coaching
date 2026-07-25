@@ -24,9 +24,27 @@
             taken = true;
           }
         });
-        option.disabled = taken && option.value !== myValue;
+        // Still show taken names so you can pick them to swap; mark visually via disabled=false
+        option.disabled = false;
+        option.dataset.taken = taken && option.value !== myValue ? "1" : "";
       });
     });
+  }
+
+  function swapOrAssign(form, select, previousValue) {
+    const newVal = select.value;
+    if (!newVal) {
+      refreshSelects(form);
+      return;
+    }
+
+    const selects = form.querySelectorAll("select.player-select");
+    selects.forEach(function (other) {
+      if (other !== select && other.value === newVal) {
+        other.value = previousValue || "";
+      }
+    });
+    refreshSelects(form);
   }
 
   function init() {
@@ -34,9 +52,18 @@
     if (!form) {
       return;
     }
-    form.addEventListener("change", function () {
-      refreshSelects(form);
+
+    form.querySelectorAll("select.player-select").forEach(function (select) {
+      select.addEventListener("focus", function () {
+        select.dataset.previousValue = select.value;
+      });
+      select.addEventListener("change", function () {
+        const previous = select.dataset.previousValue || "";
+        swapOrAssign(form, select, previous);
+        select.dataset.previousValue = select.value;
+      });
     });
+
     refreshSelects(form);
   }
 

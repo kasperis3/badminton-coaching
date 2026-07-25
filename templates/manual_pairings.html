@@ -12,6 +12,9 @@
     Assign each court for
     {% if competition_mode == 'singles' %}singles{% else %}doubles{% endif %}
     mode, or switch back to auto pairings below.
+    {% if court_plan.sit_out_count == 0 %}
+    Tip: pick a player who is already on another court to swap them.
+    {% endif %}
   </p>
 
   {% if errors %}

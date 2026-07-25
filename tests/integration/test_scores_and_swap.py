@@ -50,14 +50,14 @@ def manual_pairings_form_seven_singles():
 
 def test_swap_changes_sit_out_on_round_page(client):
     players = ["P1", "P2", "P3", "P4", "P5", "P6", "P7"]
-    start_session(
+    response = start_session(
         client,
         players,
         num_courts=4,
         competition_mode="singles",
-        pairing_preference="manual",
     )
-    client.get("/round/pairings")
+    follow(client, response)
+    client.get("/round/edit-pairings", follow_redirects=True)
     client.post("/round/pairings", data=manual_pairings_form_seven_singles())
 
     before = client.get("/round")

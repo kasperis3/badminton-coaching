@@ -5,14 +5,14 @@ from tests.conftest import follow, manual_pairings_form_six_players, start_sessi
 pytestmark = pytest.mark.regression
 
 
-def test_manual_start_redirects_to_pairings_builder(client, six_players):
-    response = start_session(
-        client, six_players, num_courts=2, pairing_preference="manual"
-    )
-    assert response.status_code == 302
-    assert "/round/pairings" in response.headers["Location"]
+def _start_and_open_builder(client, players, **kwargs):
+    response = start_session(client, players, **kwargs)
+    follow(client, response)
+    return client.get("/round/edit-pairings", follow_redirects=True)
 
-    builder = follow(client, response)
+
+def test_edit_pairings_opens_builder_from_auto_round(client, six_players):
+    builder = _start_and_open_builder(client, six_players, num_courts=2)
     assert builder.status_code == 200
     assert b"Set pairings" in builder.data
 
@@ -20,8 +20,7 @@ def test_manual_start_redirects_to_pairings_builder(client, six_players):
 def test_manual_pairings_submit_shows_round_without_exploratory_hint(
     client, six_players
 ):
-    start_session(client, six_players, num_courts=2, pairing_preference="manual")
-    client.get("/round/pairings")
+    _start_and_open_builder(client, six_players, num_courts=2)
 
     round_page = client.post(
         "/round/pairings",
@@ -34,8 +33,7 @@ def test_manual_pairings_submit_shows_round_without_exploratory_hint(
 
 
 def test_auto_pairings_from_builder(client, six_players):
-    start_session(client, six_players, num_courts=2, pairing_preference="manual")
-    client.get("/round/pairings")
+    _start_and_open_builder(client, six_players, num_courts=2)
 
     round_page = client.post("/round/pairings/auto", follow_redirects=True)
     assert round_page.status_code == 200
@@ -44,10 +42,21 @@ def test_auto_pairings_from_builder(client, six_players):
 
 
 def test_edit_pairings_returns_to_builder(client, six_players):
-    start_session(client, six_players, num_courts=2, pairing_preference="manual")
+    _start_and_open_builder(client, six_players, num_courts=2)
     client.post("/round/pairings", data=manual_pairings_form_six_players())
     client.get("/round")
 
     builder = client.get("/round/edit-pairings", follow_redirects=True)
     assert builder.status_code == 200
     assert b"Set pairings" in builder.data
+
+
+def test_edit_pairings_works_with_no_sit_out(client, four_players):
+    """Four players, one court — no sit-out; edit pairings must still open."""
+    response = start_session(client, four_players, num_courts=1)
+    follow(client, response)
+    builder = client.get("/round/edit-pairings", follow_redirects=True)
+    assert builder.status_code == 200
+    assert b"Set pairings" in builder.data
+    assert b"Sitting out" not in builder.data
+    assert b"swap them" in builder.data.lower() or b"Tip:" in builder.data

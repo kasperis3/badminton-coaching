@@ -274,9 +274,9 @@ Server-side Flask sessions still expire after about **7 days**; localStorage is 
 
 ### Manual pairings and sit-out swap (web)
 
-- **Round 1** — at setup, choose **Auto** or **Manual** pairings. Manual opens a court builder where you assign every player once.
+- **Start** — round 1 is always auto-generated.
+- **Edit pairings** — on the round page before scores are saved, open the court builder to assign players yourself.
 - **Later rounds** — after each round, **Next round (auto)** or **Set pairings manually**.
-- **Edit pairings** — on the round page before scores are saved, change assignments for the current round.
 - **Swap with sit-out** — when one player sits out, each court has a **Swap** control to exchange one player on that court with the sit-out (bye points and games played update automatically).
 
 Matchup history is recorded when scores are saved, so swaps and manual edits are reflected in what actually gets played.

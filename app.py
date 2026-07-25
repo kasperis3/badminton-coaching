@@ -6,6 +6,7 @@ from flask import Flask, redirect, render_template, request, session, url_for
 
 from mixer_core import (
     COMPETITION_DOUBLES,
+    PAIRING_AUTO,
     PAIRING_MANUAL,
     RANKED_MODE_AFTER_THREE,
     RANKED_MODE_ALWAYS,
@@ -151,7 +152,6 @@ def start_session():
 
     game_to = normalize_game_to(request.form.get("game_to"))
     competition_mode = normalize_competition_mode(request.form.get("competition_mode"))
-    pairing_preference = request.form.get("pairing_preference", "auto")
     ranked_pairing_mode = normalize_ranked_pairing_mode(
         request.form.get("ranked_pairing_mode")
     )
@@ -174,7 +174,6 @@ def start_session():
             num_courts=num_courts or "",
             game_to=game_to,
             competition_mode=competition_mode,
-            pairing_preference=pairing_preference,
             ranked_pairing_mode=ranked_pairing_mode,
             players=request.form.get("players", ""),
         )
@@ -183,7 +182,7 @@ def start_session():
     session["num_courts"] = num_courts
     session["game_to"] = game_to
     session["competition_mode"] = competition_mode
-    session["pairing_preference"] = pairing_preference
+    session["pairing_preference"] = PAIRING_AUTO
     session["ranked_pairing_mode"] = ranked_pairing_mode
     session["players_scores"] = {name: 0 for name in players}
     session["games_played"] = {name: 0 for name in players}
@@ -195,8 +194,6 @@ def start_session():
     session["round_num"] = 1
     session.pop("pairings_draft", None)
 
-    if pairing_preference == PAIRING_MANUAL:
-        return redirect(url_for("manual_pairings_view"))
     return redirect(url_for("round_view"))
 
 

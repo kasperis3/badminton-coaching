@@ -40,7 +40,6 @@ def start_session(
     players,
     num_courts=2,
     competition_mode="doubles",
-    pairing_preference="auto",
     game_to=7,
     ranked_pairing_mode="after_three",
 ):
@@ -49,7 +48,6 @@ def start_session(
         data={
             "num_courts": str(num_courts),
             "competition_mode": competition_mode,
-            "pairing_preference": pairing_preference,
             "game_to": str(game_to),
             "ranked_pairing_mode": ranked_pairing_mode,
             "players": "\n".join(players),

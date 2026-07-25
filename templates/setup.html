@@ -10,7 +10,7 @@
 
 <section class="card">
   <h1>Start session</h1>
-  <p class="lead">Set courts, competition type, game format, pairing style, and players.</p>
+  <p class="lead">Set courts, competition type, game format, pairing style, and players. Round 1 is generated automatically — edit pairings on the round page if you want to seed courts by hand.</p>
 
   {% if errors %}
   <ul class="alert alert-error">
@@ -100,32 +100,7 @@
           <span>Random all session</span>
         </label>
       </div>
-      <span class="hint">Ranked groups similar scores from round 4. Random keeps variety every round (still avoids repeat partners/matchups when possible).</span>
-    </fieldset>
-
-    <fieldset class="field">
-      <span class="label">Round 1 pairings</span>
-      <div class="radio-row">
-        <label class="radio-option">
-          <input
-            type="radio"
-            name="pairing_preference"
-            value="auto"
-            {% if (pairing_preference | default('auto')) == 'auto' %}checked{% endif %}
-          >
-          <span>Auto</span>
-        </label>
-        <label class="radio-option">
-          <input
-            type="radio"
-            name="pairing_preference"
-            value="manual"
-            {% if pairing_preference == 'manual' %}checked{% endif %}
-          >
-          <span>Manual</span>
-        </label>
-      </div>
-      <span class="hint">Auto generates matchups. Manual lets you assign courts yourself for round 1 (and any later round).</span>
+      <span class="hint">Default for auto rounds. You can switch to Random or Ranked after each round. Use Edit pairings anytime to set courts yourself.</span>
     </fieldset>
 
     <label class="field">
