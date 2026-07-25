@@ -4,10 +4,13 @@ import pytest
 
 from mixer_core import (
     MAX_SINGLES_GAMES,
+    RANKED_MODE_AFTER_THREE,
+    RANKED_MODE_NEVER,
     SchedulingError,
     best_singles_pair,
     build_court_plan,
     generate_round,
+    normalize_ranked_pairing_mode,
     record_games_played,
     record_round_history,
     validate_session,
@@ -58,6 +61,75 @@ def test_generate_round_ranked_pairing_phase():
     r4 = generate_round(2, ps, hist, hist, {}, {}, {}, 4, "doubles")
     assert r1["use_ranked_pairing"] is False
     assert r4["use_ranked_pairing"] is True
+
+
+def test_generate_round_never_ranked_stays_random():
+    players = [f"P{i}" for i in range(6)]
+    ps = {p: idx * 10 for idx, p in enumerate(players)}
+    hist = {p: 0 for p in players}
+    r4 = generate_round(
+        2,
+        ps,
+        hist,
+        hist,
+        {},
+        {},
+        {},
+        4,
+        "doubles",
+        RANKED_MODE_NEVER,
+    )
+    assert r4["use_ranked_pairing"] is False
+
+
+def test_normalize_ranked_pairing_mode():
+    assert normalize_ranked_pairing_mode(None) == RANKED_MODE_AFTER_THREE
+    assert normalize_ranked_pairing_mode("bogus") == RANKED_MODE_AFTER_THREE
+    assert normalize_ranked_pairing_mode(RANKED_MODE_NEVER) == RANKED_MODE_NEVER
+    assert normalize_ranked_pairing_mode(RANKED_MODE_AFTER_THREE) == RANKED_MODE_AFTER_THREE
+    assert normalize_ranked_pairing_mode("always") == "always"
+
+
+def test_should_use_ranked_pairing_modes():
+    from mixer_core import should_use_ranked_pairing
+
+    assert should_use_ranked_pairing(4, RANKED_MODE_AFTER_THREE) is True
+    assert should_use_ranked_pairing(3, RANKED_MODE_AFTER_THREE) is False
+    assert should_use_ranked_pairing(4, RANKED_MODE_NEVER) is False
+    assert should_use_ranked_pairing(1, "always") is True
+    assert should_use_ranked_pairing(10, "always") is True
+
+
+def test_sit_out_rotates_after_everyone_has_sat_once():
+    from mixer_core import pick_round_sitter
+
+    players = ["A", "B", "C", "D", "E"]
+    sit_out_history = {p: 1 for p in players}
+    # A highest score, E lowest — old bug would sit E every round
+    players_scores = {"A": 50, "B": 40, "C": 30, "D": 20, "E": 10}
+
+    first = pick_round_sitter(players, sit_out_history, players_scores)
+    sit_out_history[first] += 1
+    second = pick_round_sitter(players, sit_out_history, players_scores)
+    assert first == "E"
+    assert second != "E"
+    assert sit_out_history[second] == 1
+
+
+def test_sit_out_multi_round_does_not_stuck_on_lowest():
+    from mixer_core import assign_round_sitter
+
+    players = ["A", "B", "C", "D", "E"]
+    sit_out_history = {p: 0 for p in players}
+    players_scores = {"A": 50, "B": 40, "C": 30, "D": 20, "E": 10}
+    sitters = []
+    for _ in range(10):
+        sitting_out = []
+        assign_round_sitter(players, sitting_out, sit_out_history, players_scores)
+        sitters.append(sitting_out[0])
+    # After full rotation, E should not monopolize sits
+    assert sitters.count("E") <= 3
+    assert len(set(sitters)) == 5
 
 
 def test_record_games_played_rejects_duplicate():

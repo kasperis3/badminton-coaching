@@ -12,15 +12,48 @@
 
 <section class="card">
   <h1>Round {{ round_num }} saved</h1>
-  <p class="lead">Standings after this round (pts and games played). Choose auto pairings or set them manually for the next round.</p>
+  <p class="lead">Standings after this round. Choose how to pair the next auto round, then continue.</p>
 
   {% with final=false %}{% include "_standings_list.html" %}{% endwith %}
 
+  <fieldset class="field pairing-style-field">
+    <span class="label">Next auto pairings</span>
+    <div class="radio-row">
+      <label class="radio-option">
+        <input
+          type="radio"
+          name="ranked_pairing_mode"
+          value="never"
+          form="next-round-auto-form"
+          {% if not next_uses_ranked %}checked{% endif %}
+        >
+        <span>Random</span>
+      </label>
+      <label class="radio-option">
+        <input
+          type="radio"
+          name="ranked_pairing_mode"
+          value="always"
+          form="next-round-auto-form"
+          {% if next_uses_ranked %}checked{% endif %}
+        >
+        <span>Ranked</span>
+      </label>
+    </div>
+    <span class="hint">Random = variety. Ranked = similar scores. Manual pairings ignore this.</span>
+  </fieldset>
+
   <div class="action-stack">
-    <form method="post" action="{{ url_for('next_round') }}">
+    <form method="post" action="{{ url_for('next_round') }}" id="next-round-auto-form">
       <button type="submit" class="btn btn-primary btn-block">Next round (auto)</button>
     </form>
-    <form method="post" action="{{ url_for('next_round_manual') }}">
+    <form method="post" action="{{ url_for('next_round_manual') }}" id="next-round-manual-form">
+      <input
+        type="hidden"
+        name="ranked_pairing_mode"
+        id="manual-ranked-mode"
+        value="{{ 'always' if next_uses_ranked else 'never' }}"
+      >
       <button type="submit" class="btn btn-secondary btn-block">Set pairings manually</button>
     </form>
     <form method="post" action="{{ url_for('end_session') }}">
@@ -29,4 +62,27 @@
     <a href="{{ url_for('index') }}" class="btn btn-ghost btn-block">Start over</a>
   </div>
 </section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  var radios = document.querySelectorAll('input[name="ranked_pairing_mode"][form="next-round-auto-form"]');
+  var manualHidden = document.getElementById("manual-ranked-mode");
+  if (!manualHidden || !radios.length) {
+    return;
+  }
+  function syncManual() {
+    var checked = document.querySelector(
+      'input[name="ranked_pairing_mode"][form="next-round-auto-form"]:checked'
+    );
+    if (checked) {
+      manualHidden.value = checked.value;
+    }
+  }
+  radios.forEach(function (radio) {
+    radio.addEventListener("change", syncManual);
+  });
+})();
+</script>
 {% endblock %}

@@ -207,6 +207,10 @@ textarea:focus {
   margin-top: 8px;
 }
 
+.pairing-style-field {
+  margin: 16px 0 18px;
+}
+
 .alert {
   margin: 0 0 14px;
   padding: 12px 14px;

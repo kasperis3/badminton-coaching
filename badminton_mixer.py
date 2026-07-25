@@ -3,7 +3,8 @@ from mixer_core import (
     COMPETITION_DOUBLES,
     COMPETITION_SINGLES,
     DEFAULT_GAME_TO,
-    RANKED_PAIRING_START_ROUND,
+    RANKED_MODE_AFTER_THREE,
+    RANKED_MODE_NEVER,
     SchedulingError,
     apply_bye_points,
     apply_round_scores,
@@ -11,9 +12,11 @@ from mixer_core import (
     generate_round,
     normalize_competition_mode,
     normalize_game_to,
+    normalize_ranked_pairing_mode,
     record_games_played,
     standings_rows,
     validate_match_score,
+    validate_session,
 )
 
 
@@ -44,6 +47,19 @@ def setup_session():
         if not raw or game_to in ALLOWED_GAME_TO:
             break
         print(f"  Choose one of: {', '.join(map(str, ALLOWED_GAME_TO))}")
+
+    while True:
+        ranked_raw = (
+            input("Pairing style (ranked/random) [ranked]: ").strip().lower()
+        )
+        if not ranked_raw or ranked_raw.startswith("rank"):
+            ranked_pairing_mode = RANKED_MODE_AFTER_THREE
+            break
+        if ranked_raw.startswith("ran") or ranked_raw == "never":
+            ranked_pairing_mode = RANKED_MODE_NEVER
+            break
+        print("  Choose ranked (switch after round 3) or random (all session).")
+    ranked_pairing_mode = normalize_ranked_pairing_mode(ranked_pairing_mode)
 
     print("\nEnter player names one by one (Press Enter on an empty line when done):")
     player_list = []
@@ -81,6 +97,7 @@ def setup_session():
         num_courts,
         game_to,
         competition_mode,
+        ranked_pairing_mode,
         players_scores,
         games_played,
         sit_out_history,
@@ -91,14 +108,15 @@ def setup_session():
     )
 
 
-def display_round(pairings, players_scores, games_played, game_to, bye_points, competition_mode):
+def display_round(
+    pairings, players_scores, games_played, game_to, bye_points, competition_mode
+):
     round_num = pairings["round_num"]
     mode_label = "Singles" if competition_mode == COMPETITION_SINGLES else "Doubles"
-    phase = (
-        "ranked"
-        if pairings.get("use_ranked_pairing")
-        else f"random (rounds 1–{RANKED_PAIRING_START_ROUND - 1})"
-    )
+    if pairings.get("use_ranked_pairing"):
+        phase = "ranked"
+    else:
+        phase = "random"
     print(f"\n======================================")
     print(f"      GENERATING PAIRINGS: ROUND {round_num} ({mode_label}, {phase})")
     print(f"======================================")
@@ -185,6 +203,7 @@ def main():
         num_courts,
         game_to,
         competition_mode,
+        ranked_pairing_mode,
         players_scores,
         games_played,
         sit_out_history,
@@ -208,6 +227,7 @@ def main():
                 singles_matchup_history,
                 round_num,
                 competition_mode,
+                ranked_pairing_mode,
             )
         except SchedulingError as e:
             print(f"\nScheduling error: {e}")

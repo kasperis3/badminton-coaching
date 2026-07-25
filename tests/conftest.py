@@ -42,6 +42,7 @@ def start_session(
     competition_mode="doubles",
     pairing_preference="auto",
     game_to=7,
+    ranked_pairing_mode="after_three",
 ):
     response = client.post(
         "/start",
@@ -50,6 +51,7 @@ def start_session(
             "competition_mode": competition_mode,
             "pairing_preference": pairing_preference,
             "game_to": str(game_to),
+            "ranked_pairing_mode": ranked_pairing_mode,
             "players": "\n".join(players),
         },
         follow_redirects=False,

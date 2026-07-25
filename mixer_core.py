@@ -5,6 +5,9 @@ MAX_SIT_OUTS = 1
 ALLOWED_GAME_TO = (7, 11, 15, 21)
 DEFAULT_GAME_TO = 7
 RANKED_PAIRING_START_ROUND = 4
+RANKED_MODE_AFTER_THREE = "after_three"
+RANKED_MODE_NEVER = "never"
+RANKED_MODE_ALWAYS = "always"
 COMPETITION_DOUBLES = "doubles"
 COMPETITION_SINGLES = "singles"
 PAIRING_AUTO = "auto"
@@ -32,6 +35,23 @@ def normalize_competition_mode(value):
     if value == COMPETITION_SINGLES:
         return COMPETITION_SINGLES
     return COMPETITION_DOUBLES
+
+
+def normalize_ranked_pairing_mode(value):
+    if value == RANKED_MODE_NEVER:
+        return RANKED_MODE_NEVER
+    if value == RANKED_MODE_ALWAYS:
+        return RANKED_MODE_ALWAYS
+    return RANKED_MODE_AFTER_THREE
+
+
+def should_use_ranked_pairing(round_num, ranked_pairing_mode=RANKED_MODE_AFTER_THREE):
+    mode = normalize_ranked_pairing_mode(ranked_pairing_mode)
+    if mode == RANKED_MODE_NEVER:
+        return False
+    if mode == RANKED_MODE_ALWAYS:
+        return True
+    return round_num >= RANKED_PAIRING_START_ROUND
 
 
 def min_courts_for_playing_doubles(playing_count):
@@ -121,6 +141,7 @@ def order_active_players(active, players_scores, use_ranked):
 
 
 def pick_round_sitter(ranked_names, sit_out_history, players_scores):
+    """Pick who sits: fewest sit-outs first; among ties, lower score (bye catch-up)."""
     under_cap = [p for p in ranked_names if sit_out_history.get(p, 0) < MAX_SIT_OUTS]
     pool = under_cap if under_cap else ranked_names
     return sorted(pool, key=lambda p: (sit_out_history.get(p, 0), players_scores[p]))[0]
@@ -128,11 +149,8 @@ def pick_round_sitter(ranked_names, sit_out_history, players_scores):
 
 def assign_round_sitter(ranked_names, sitting_out, sit_out_history, players_scores):
     sitter = pick_round_sitter(ranked_names, sit_out_history, players_scores)
-    if sit_out_history.get(sitter, 0) < MAX_SIT_OUTS:
-        sitting_out.append(sitter)
-        sit_out_history[sitter] = sit_out_history.get(sitter, 0) + 1
-    else:
-        sitting_out.append(sitter)
+    sitting_out.append(sitter)
+    sit_out_history[sitter] = sit_out_history.get(sitter, 0) + 1
     return sitter
 
 
@@ -230,10 +248,16 @@ def assert_schedule_valid(sitting_out, singles_matches, doubles_matches, all_pla
 
 
 def _round_result(
-    doubles_matches, singles_matches, sitting_out, ranked_names, players_scores, round_num
+    doubles_matches,
+    singles_matches,
+    sitting_out,
+    ranked_names,
+    players_scores,
+    round_num,
+    ranked_pairing_mode=RANKED_MODE_AFTER_THREE,
 ):
     sorted_players = sorted(players_scores.items(), key=lambda x: x[1], reverse=True)
-    use_ranked = round_num >= RANKED_PAIRING_START_ROUND
+    use_ranked = should_use_ranked_pairing(round_num, ranked_pairing_mode)
     return {
         "doubles": doubles_matches,
         "singles_matches": singles_matches,
@@ -253,10 +277,11 @@ def generate_round_doubles(
     matchup_history,
     singles_matchup_history,
     round_num,
+    ranked_pairing_mode=RANKED_MODE_AFTER_THREE,
 ):
     ranked_names = ranked_by_score(players_scores.keys(), players_scores)
     num_players = len(ranked_names)
-    use_ranked = round_num >= RANKED_PAIRING_START_ROUND
+    use_ranked = should_use_ranked_pairing(round_num, ranked_pairing_mode)
 
     sit_out_count = resolve_sit_outs_doubles(num_players)
     sitting_out = []
@@ -289,7 +314,13 @@ def generate_round_doubles(
 
     assert_schedule_valid(sitting_out, singles_matches, doubles_matches, ranked_names)
     return _round_result(
-        doubles_matches, singles_matches, sitting_out, ranked_names, players_scores, round_num
+        doubles_matches,
+        singles_matches,
+        sitting_out,
+        ranked_names,
+        players_scores,
+        round_num,
+        ranked_pairing_mode,
     )
 
 
@@ -302,10 +333,11 @@ def generate_round_singles(
     matchup_history,
     singles_matchup_history,
     round_num,
+    ranked_pairing_mode=RANKED_MODE_AFTER_THREE,
 ):
     ranked_names = ranked_by_score(players_scores.keys(), players_scores)
     num_players = len(ranked_names)
-    use_ranked = round_num >= RANKED_PAIRING_START_ROUND
+    use_ranked = should_use_ranked_pairing(round_num, ranked_pairing_mode)
 
     sitting_out = []
     if resolve_sit_outs_singles(num_players) == 1:
@@ -330,7 +362,15 @@ def generate_round_singles(
         )
 
     assert_schedule_valid(sitting_out, singles_matches, [], ranked_names)
-    return _round_result([], singles_matches, sitting_out, ranked_names, players_scores, round_num)
+    return _round_result(
+        [],
+        singles_matches,
+        sitting_out,
+        ranked_names,
+        players_scores,
+        round_num,
+        ranked_pairing_mode,
+    )
 
 
 def generate_round(
@@ -343,6 +383,7 @@ def generate_round(
     singles_matchup_history,
     round_num,
     competition_mode=COMPETITION_DOUBLES,
+    ranked_pairing_mode=RANKED_MODE_AFTER_THREE,
 ):
     num_players = len(players_scores)
     mode = normalize_competition_mode(competition_mode)
@@ -350,6 +391,7 @@ def generate_round(
     if err:
         raise SchedulingError(err)
 
+    ranked_mode = normalize_ranked_pairing_mode(ranked_pairing_mode)
     if mode == COMPETITION_SINGLES:
         return generate_round_singles(
             num_courts,
@@ -360,6 +402,7 @@ def generate_round(
             matchup_history,
             singles_matchup_history,
             round_num,
+            ranked_mode,
         )
     return generate_round_doubles(
         num_courts,
@@ -370,6 +413,7 @@ def generate_round(
         matchup_history,
         singles_matchup_history,
         round_num,
+        ranked_mode,
     )
 
 

@@ -247,17 +247,21 @@ At setup, choose **Doubles** (default) or **Singles**:
 
 ### Pairing phases
 
-- **Rounds 1–3** — active players are shuffled; pairings are exploratory (matchup history still avoids repeats when possible).
-- **Round 4+** — players are grouped by **score** (ranked tiers / similar-strength singles pairs).
+At session start choose auto pairing style:
+
+- **Ranked after round 3** (default) — rounds 1–3 are exploratory (shuffled; matchup history still avoids repeats when possible); from round 4 players are grouped by **score**.
+- **Random all session** — stay exploratory for every round (no score-based clustering).
+
+Between rounds you can switch upcoming auto pairings to **Random** or **Ranked** (similar scores). Setup still offers “ranked after round 3” vs “random all session.”
 
 ### Scoring and rotation
 
 - **Game to** — choose **7** (default), **11**, **15**, or **21** at session start. Match scores are 0 to that cap.
 - **Sit-out points** — half the game cap + 1 (7→4, 11→6, 15→8, 21→11).
 - In doubles mode, each player plays **singles at most twice** per session; lower scorers preferred for singles rotation.
-- Each player **sits out at most once** per session (when a sit-out is needed).
+- Each player **prefers at most one sit-out** early in the session; after everyone has sat once, sit-outs **keep rotating** by fewest previous sits (not stuck on the lowest scorer).
 - **Matchup memory**: partners and opponents tracked to avoid repeats when possible.
-- Sit-outs rotate fairly when needed (fewest previous sit-outs first).
+- Sit-outs rotate fairly when needed (fewest previous sit-outs first; lower score only as a tie-break).
 
 ### Session history and resume (web)
 

@@ -7,6 +7,9 @@ from flask import Flask, redirect, render_template, request, session, url_for
 from mixer_core import (
     COMPETITION_DOUBLES,
     PAIRING_MANUAL,
+    RANKED_MODE_AFTER_THREE,
+    RANKED_MODE_ALWAYS,
+    RANKED_MODE_NEVER,
     SchedulingError,
     apply_bye_points,
     apply_round_scores,
@@ -17,6 +20,7 @@ from mixer_core import (
     generate_round,
     normalize_competition_mode,
     normalize_game_to,
+    normalize_ranked_pairing_mode,
     pairings_session_dict,
     pairings_to_draft,
     parse_manual_pairings,
@@ -24,6 +28,7 @@ from mixer_core import (
     record_games_played,
     record_round_history,
     reverse_round_start_effects,
+    should_use_ranked_pairing,
     standings_rows,
     validate_match_score,
     validate_session,
@@ -63,6 +68,9 @@ def build_session_snapshot():
         "game_to": session.get("game_to"),
         "competition_mode": session.get("competition_mode", COMPETITION_DOUBLES),
         "pairing_preference": session.get("pairing_preference"),
+        "ranked_pairing_mode": session.get(
+            "ranked_pairing_mode", RANKED_MODE_AFTER_THREE
+        ),
         "players_scores": session.get("players_scores"),
         "games_played": session.get("games_played"),
         "sit_out_history": session.get("sit_out_history"),
@@ -81,6 +89,9 @@ def restore_session_from_payload(data):
     session["game_to"] = normalize_game_to(data.get("game_to"))
     session["competition_mode"] = normalize_competition_mode(data.get("competition_mode"))
     session["pairing_preference"] = data.get("pairing_preference")
+    session["ranked_pairing_mode"] = normalize_ranked_pairing_mode(
+        data.get("ranked_pairing_mode")
+    )
     session["players_scores"] = data["players_scores"]
     session["games_played"] = data["games_played"]
     session["sit_out_history"] = data["sit_out_history"]
@@ -141,6 +152,9 @@ def start_session():
     game_to = normalize_game_to(request.form.get("game_to"))
     competition_mode = normalize_competition_mode(request.form.get("competition_mode"))
     pairing_preference = request.form.get("pairing_preference", "auto")
+    ranked_pairing_mode = normalize_ranked_pairing_mode(
+        request.form.get("ranked_pairing_mode")
+    )
     players = parse_players(request.form.get("players", ""))
 
     errors = []
@@ -161,6 +175,7 @@ def start_session():
             game_to=game_to,
             competition_mode=competition_mode,
             pairing_preference=pairing_preference,
+            ranked_pairing_mode=ranked_pairing_mode,
             players=request.form.get("players", ""),
         )
 
@@ -169,6 +184,7 @@ def start_session():
     session["game_to"] = game_to
     session["competition_mode"] = competition_mode
     session["pairing_preference"] = pairing_preference
+    session["ranked_pairing_mode"] = ranked_pairing_mode
     session["players_scores"] = {name: 0 for name in players}
     session["games_played"] = {name: 0 for name in players}
     session["sit_out_history"] = {name: 0 for name in players}
@@ -289,6 +305,7 @@ def auto_pairings_for_round():
             session["singles_matchup_history"],
             session["round_num"],
             competition_mode,
+            session.get("ranked_pairing_mode", RANKED_MODE_AFTER_THREE),
         )
     except SchedulingError as e:
         return render_template(
@@ -342,6 +359,7 @@ def round_view():
                 session["singles_matchup_history"],
                 session["round_num"],
                 competition_mode,
+                session.get("ranked_pairing_mode", RANKED_MODE_AFTER_THREE),
             )
         except SchedulingError as e:
             return render_template(
@@ -350,6 +368,9 @@ def round_view():
                 num_courts=session["num_courts"],
                 game_to=game_to,
                 competition_mode=competition_mode,
+                ranked_pairing_mode=session.get(
+                    "ranked_pairing_mode", RANKED_MODE_AFTER_THREE
+                ),
                 players="\n".join(session["players_scores"].keys()),
             )
         finalize_auto_pairings(pairings)
@@ -503,11 +524,18 @@ def submit_scores():
     session.modified = True
 
     snapshot = build_session_snapshot()
+    ranked_mode = session.get("ranked_pairing_mode", RANKED_MODE_AFTER_THREE)
+    next_round_num = session.get("round_num", 1) + 1
+    next_uses_ranked = should_use_ranked_pairing(next_round_num, ranked_mode)
     return render_template(
         "between_rounds.html",
         round_num=session["round_num"],
         standings=standings_rows(session["players_scores"], session["games_played"]),
         session_snapshot=snapshot,
+        next_uses_ranked=next_uses_ranked,
+        ranked_pairing_mode=(
+            RANKED_MODE_ALWAYS if next_uses_ranked else RANKED_MODE_NEVER
+        ),
     )
 
 
@@ -515,6 +543,10 @@ def submit_scores():
 def next_round():
     if "players_scores" not in session:
         return redirect(url_for("index"))
+    if "ranked_pairing_mode" in request.form:
+        session["ranked_pairing_mode"] = normalize_ranked_pairing_mode(
+            request.form.get("ranked_pairing_mode")
+        )
     session["round_num"] = session.get("round_num", 1) + 1
     session.pop("pairings_draft", None)
     session.modified = True
@@ -525,6 +557,10 @@ def next_round():
 def next_round_manual():
     if "players_scores" not in session:
         return redirect(url_for("index"))
+    if "ranked_pairing_mode" in request.form:
+        session["ranked_pairing_mode"] = normalize_ranked_pairing_mode(
+            request.form.get("ranked_pairing_mode")
+        )
     session["round_num"] = session.get("round_num", 1) + 1
     session.pop("pairings_draft", None)
     session.pop("current_pairings", None)

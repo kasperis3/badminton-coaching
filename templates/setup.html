@@ -10,7 +10,7 @@
 
 <section class="card">
   <h1>Start session</h1>
-  <p class="lead">Set courts, competition type, game format, and players. Rounds 1–3 are randomized; from round 4, similar scores are grouped.</p>
+  <p class="lead">Set courts, competition type, game format, pairing style, and players.</p>
 
   {% if errors %}
   <ul class="alert alert-error">
@@ -76,6 +76,31 @@
         {% endfor %}
       </div>
       <span class="hint">Default is 7. Sit-out bye is about half + 1 (e.g. 7→4 pts).</span>
+    </fieldset>
+
+    <fieldset class="field">
+      <span class="label">Auto pairing style</span>
+      <div class="radio-row">
+        <label class="radio-option">
+          <input
+            type="radio"
+            name="ranked_pairing_mode"
+            value="after_three"
+            {% if (ranked_pairing_mode | default('after_three')) == 'after_three' %}checked{% endif %}
+          >
+          <span>Ranked after round 3</span>
+        </label>
+        <label class="radio-option">
+          <input
+            type="radio"
+            name="ranked_pairing_mode"
+            value="never"
+            {% if ranked_pairing_mode == 'never' %}checked{% endif %}
+          >
+          <span>Random all session</span>
+        </label>
+      </div>
+      <span class="hint">Ranked groups similar scores from round 4. Random keeps variety every round (still avoids repeat partners/matchups when possible).</span>
     </fieldset>
 
     <fieldset class="field">
